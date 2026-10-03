@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Kabok AI Brochure</title>
+<link rel="stylesheet" href="fonts/v.css">
+<style>
+  @page { size: A4; margin: 0; }
+  :root{
+    --ink:#0f1f2e; --navy:#0b2a3c; --teal:#0e7c86; --teal2:#14a3a8; --mint:#e6f5f4;
+    --amber:#f2a33a; --amber2:#fff3e0; --muted:#5b6b78; --line:#d9e3e8; --bg:#ffffff; --soft:#f5f8fa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#fff}
+  body{font-family:"Vazirmatn",sans-serif;color:var(--ink);font-size:10.5pt;line-height:1.85;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{width:210mm;height:297mm;position:relative;overflow:hidden;page-break-after:always;padding:18mm 16mm 20mm}
+  .page:last-child{page-break-after:auto}
+  .foot{position:absolute;bottom:9mm;right:16mm;left:16mm;display:flex;justify-content:space-between;font-size:8pt;color:var(--muted);border-top:1px solid var(--line);padding-top:3mm}
+  .foot b{color:var(--teal)}
+  h1{font-weight:900}
+  h2{font-size:21pt;font-weight:900;color:var(--navy);line-height:1.4}
+  h3{font-size:12.5pt;font-weight:800;color:var(--navy);line-height:1.5}
+  .kicker{display:inline-block;font-size:9pt;font-weight:700;color:var(--teal);background:var(--mint);padding:1mm 3.5mm;border-radius:20px;margin-bottom:3mm}
+  .lead{color:var(--muted);font-size:11pt;margin-top:2mm;max-width:165mm}
+  .bar{width:22mm;height:1.6mm;background:var(--amber);border-radius:2mm;margin:3mm 0 5mm}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4mm}
+  .card{background:var(--soft);border:1px solid var(--line);border-radius:4mm;padding:5mm}
+  .card p{color:#33434f;font-size:9.6pt;line-height:1.8}
+  .card h3{margin-bottom:1.5mm}
+  .ico{width:10mm;height:10mm;border-radius:3mm;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11pt;margin-bottom:3mm}
+  .ico.am{background:var(--amber);color:var(--navy)}
+  ul.tick{list-style:none}
+  ul.tick li{position:relative;padding-right:5mm;font-size:9.6pt;color:#33434f;line-height:1.85}
+  ul.tick li::before{content:"";position:absolute;right:0;top:2.6mm;width:2mm;height:2mm;border-radius:50%;background:var(--teal2)}
+  .tag{display:inline-block;font-size:8pt;font-weight:700;padding:.3mm 2.5mm;border-radius:10px;background:var(--amber2);color:#9a5b05;margin-left:1.5mm}
+
+  /* cover */
+  .cover{background:linear-gradient(160deg,#0b2a3c 0%,#0d4458 55%,#0e7c86 100%);color:#fff;padding:0}
+  .cover .in{position:absolute;inset:0;padding:22mm 18mm}
+  .cover .brand{font-size:11pt;letter-spacing:.5mm;opacity:.85;font-weight:500}
+  .cover h1{font-size:46pt;line-height:1.25;margin-top:38mm}
+  .cover h1 span{color:var(--amber)}
+  .cover .sub{font-size:14pt;font-weight:300;opacity:.92;margin-top:5mm;max-width:150mm}
+  .cover .chips{display:flex;flex-wrap:wrap;gap:2.5mm;margin-top:12mm;max-width:160mm}
+  .cover .chips span{border:1px solid rgba(255,255,255,.35);border-radius:20px;padding:1mm 4mm;font-size:9.5pt;background:rgba(255,255,255,.06)}
+  .cover .bottom{position:absolute;bottom:20mm;right:18mm;left:18mm;display:flex;justify-content:space-between;align-items:flex-end;font-size:9pt;opacity:.85}
+  .cover svg.net{position:absolute;left:-20mm;bottom:30mm;width:120mm;opacity:.18}
+
+  /* stats */
+  .stat{border-radius:4mm;padding:5mm;background:#fff;border:1px solid var(--line)}
+  .stat .n{font-size:24pt;font-weight:900;color:var(--teal);line-height:1.2}
+  .stat .t{font-size:9.2pt;color:var(--muted)}
+
+  /* table */
+  table{width:100%;border-collapse:separate;border-spacing:0;font-size:8.7pt;line-height:1.65}
+  th{background:var(--navy);color:#fff;font-weight:700;text-align:right;padding:2mm 3mm}
+  th:first-child{border-top-right-radius:3mm} th:last-child{border-top-left-radius:3mm}
+  td{padding:1.8mm 3mm;border-bottom:1px solid var(--line);vertical-align:top;color:#2c3a45}
+  tr:nth-child(even) td{background:var(--soft)}
+  td:first-child{font-weight:800;color:var(--navy);white-space:nowrap}
+
+  /* suggestion card */
+  .sugg{border:1.5px solid var(--teal2);border-radius:4mm;overflow:hidden;background:#fff}
+  .sugg .hd{background:var(--mint);padding:2.5mm 4mm;font-weight:800;color:var(--teal);font-size:9.5pt;display:flex;justify-content:space-between}
+  .sugg .bd{padding:3mm 3.5mm;font-size:8.9pt;line-height:1.75;color:#2c3a45}
+  .sugg .bd b{color:var(--navy)}
+  .btns{display:flex;gap:2mm;margin-top:2.5mm}
+  .btns span{font-size:8.2pt;padding:.6mm 3mm;border-radius:2mm;background:var(--teal);color:#fff;font-weight:700}
+  .btns span.o{background:#fff;color:var(--teal);border:1px solid var(--teal)}
+
+  /* roadmap */
+  .road{position:relative;margin-top:4mm}
+  .step{display:grid;grid-template-columns:24mm 1fr;gap:5mm;margin-bottom:4.5mm;position:relative}
+  .step .ph{background:var(--navy);color:#fff;border-radius:3mm;text-align:center;padding:2.5mm 1mm;font-weight:800;font-size:9.5pt;line-height:1.5}
+  .step .ph small{display:block;font-weight:400;opacity:.8;font-size:8pt}
+  .step .ph.a{background:var(--teal)}
+  .step .bx{border:1px solid var(--line);border-radius:3mm;padding:3mm 4mm;background:var(--soft)}
+  .step .bx p{font-size:9.3pt;color:#33434f}
+
+  .pkg{border:1px solid var(--line);border-radius:4mm;padding:5mm;background:#fff;position:relative}
+  .pkg.hl{border:2px solid var(--amber);background:#fffaf2}
+  .pkg .nm{font-weight:900;font-size:13pt;color:var(--navy)}
+  .pkg .ds{font-size:8.8pt;color:var(--muted);margin-bottom:2mm}
+  .pkg .rib{position:absolute;top:-3mm;left:5mm;background:var(--amber);color:var(--navy);font-size:7.8pt;font-weight:800;padding:.4mm 3mm;border-radius:10px}
+
+  .cta{background:linear-gradient(135deg,#0b2a3c,#0e7c86);color:#fff;border-radius:5mm;padding:7mm 8mm}
+  .cta h3{color:#fff;font-size:15pt}
+  .cta p{opacity:.9;font-size:10pt}
+  .cta .row{display:flex;gap:6mm;margin-top:4mm;font-size:9.5pt}
+  .cta .row div{background:rgba(255,255,255,.1);border-radius:3mm;padding:2mm 4mm;flex:1}
+  .note{font-size:8pt;color:var(--muted);margin-top:3mm}
+  .ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. COVER ============ -->
+<section class="page cover">
+  <svg class="net" viewBox="0 0 400 400" fill="none" stroke="#fff" stroke-width="1.2">
+    <g>
+      <circle cx="60" cy="80" r="6"/><circle cx="170" cy="40" r="5"/><circle cx="260" cy="120" r="8"/>
+      <circle cx="120" cy="190" r="7"/><circle cx="330" cy="60" r="5"/><circle cx="300" cy="240" r="6"/>
+      <circle cx="190" cy="300" r="8"/><circle cx="60" cy="300" r="5"/><circle cx="360" cy="350" r="6"/>
+      <path d="M60 80L170 40L260 120L120 190L60 80M260 120L330 60M260 120L300 240L190 300L120 190M190 300L60 300L120 190M300 240L360 350L190 300M170 40L120 190"/>
+    </g>
+  </svg>
+  <div class="in">
+    <div class="brand">KABOK · SAPRAMIN GROUP</div>
+    <h1>کابوک،<br><span>هوشمند</span> می‌شود</h1>
+    <div class="sub">بروشور راهکارهای هوش مصنوعی برای برند کابوک — از اتصال به ERP و جمع‌آوری داده‌ی همه‌ی بخش‌ها، تا پیشنهادهای عملی و خودکارسازی تصمیم‌ها.</div>
+    <div class="chips">
+      <span>ERP هوشمند</span><span>پیش‌بینی فروش و تقاضا</span><span>بازاریابی خودکار</span>
+      <span>زنجیره تأمین</span><span>دستیار مدیریتی فارسی</span><span>داشبورد تصمیم</span><span>خدمات مشتری ۲۴/۷</span>
+    </div>
+    <div class="bottom">
+      <div>از داده تا تصمیم<br><b style="font-size:12pt;opacity:1">AI Transformation Program</b></div>
+      <div style="text-align:left" class="ltr">sapramin.com/kabok<br>۱۴۰۵</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. WHY ============ -->
+<section class="page">
+  <span class="kicker">چرا هوش مصنوعی برای کابوک؟</span>
+  <h2>داده‌ها همین حالا در سیستم‌های کابوک هست؛<br>فقط هنوز «حرف» نمی‌زنند.</h2>
+  <div class="bar"></div>
+  <p class="lead">هر فاکتور، هر سفارش خرید، هر تراکنش انبار و هر پیام مشتری یک سیگنال است. وقتی این سیگنال‌ها در ERP، اکسل‌ها، CRM و شبکه‌های اجتماعی پراکنده باشند، تصمیم‌ها با تأخیر و بر اساس حدس گرفته می‌شوند. برنامه‌ی هوشمندسازی کابوک این داده‌ها را یکپارچه می‌کند و هوش مصنوعی را به یک «همکار تحلیل‌گر» تبدیل می‌کند که هر روز پیشنهاد مشخص و قابل اجرا می‌دهد.</p>
+
+  <div class="grid2" style="margin-top:8mm">
+    <div class="card"><div class="ico am">!</div><h3>چالش‌های رایج امروز</h3>
+      <ul class="tick">
+        <li>گزارش‌ها دیر و دستی تهیه می‌شوند؛ مدیر همیشه به عقب نگاه می‌کند.</li>
+        <li>موجودی یا زیاد است (سرمایه‌ی خوابیده) یا کم (فروش ازدست‌رفته).</li>
+        <li>کمپین‌های بازاریابی بدون سنجش دقیق اثر اجرا می‌شوند.</li>
+        <li>پاسخ به مشتری و نماینده‌ها به ساعت کاری و نیروی انسانی وابسته است.</li>
+        <li>داده‌ی بخش‌ها (فروش، مالی، انبار، تولید) با هم حرف نمی‌زنند.</li>
+      </ul>
+    </div>
+    <div class="card" style="background:var(--mint);border-color:#bfe3e1"><div class="ico">✓</div><h3>آنچه هوش مصنوعی اضافه می‌کند</h3>
+      <ul class="tick">
+        <li>داشبورد زنده و هشدار خودکار به‌جای گزارش ماهانه.</li>
+        <li>پیش‌بینی تقاضا و پیشنهاد سفارش خرید برای هر کالا و هر انبار.</li>
+        <li>بخش‌بندی مشتری، پیشنهاد کمپین و تولید محتوای برند.</li>
+        <li>دستیار گفت‌وگومحور فارسی برای مشتری، نماینده و کارمند.</li>
+        <li>یک «منبع واحد حقیقت» برای همه‌ی بخش‌ها.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:9mm">اهداف قابل‌اندازه‌گیری برنامه</h3>
+  <p style="font-size:9pt;color:var(--muted)">اعداد زیر اهداف پیشنهادی برای فاز اول هستند و پس از ممیزی داده‌های کابوک دقیق و قطعی می‌شوند.</p>
+  <div class="grid3" style="margin-top:3mm;grid-template-columns:repeat(4,1fr)">
+    <div class="stat"><div class="n">۱۵–۳۰٪</div><div class="t">کاهش موجودی راکد و سرمایه‌ی در گردش</div></div>
+    <div class="stat"><div class="n">۷۰٪</div><div class="t">کاهش زمان تهیه‌ی گزارش‌های مدیریتی</div></div>
+    <div class="stat"><div class="n">۲۴/۷</div><div class="t">پاسخ‌گویی هوشمند به مشتری و نماینده</div></div>
+    <div class="stat"><div class="n">+۱۰٪</div><div class="t">هدف رشد فروش از مشتریان فعلی (Cross/Up-sell)</div></div>
+  </div>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۲</span></div>
+</section>
+
+<!-- ============ 3. ARCHITECTURE ============ -->
+<section class="page">
+  <span class="kicker">معماری راهکار</span>
+  <h2>یک مغز مرکزی، متصل به همه‌ی بخش‌ها</h2>
+  <div class="bar"></div>
+  <p class="lead">هوش مصنوعی روی ERP فعلی کابوک سوار می‌شود؛ نیازی به تعویض سیستم‌ها نیست. داده از منابع مختلف جمع می‌شود، پاک‌سازی و یکپارچه می‌شود، و خروجی به شکل پیشنهاد، هشدار، گزارش و اقدام خودکار به دست هر نقش می‌رسد.</p>
+
+  <svg viewBox="0 0 720 440" style="width:100%;margin-top:5mm" font-family="Vazirmatn">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0e7c86"/></marker></defs>
+<text x="645" y="20" text-anchor="middle" font-size="13" font-weight="800" fill="#0b2a3c">۱. منابع داده</text>
+<text x="455" y="20" text-anchor="middle" font-size="13" font-weight="800" fill="#0b2a3c">۲. لایه داده</text>
+<text x="270" y="20" text-anchor="middle" font-size="13" font-weight="800" fill="#0b2a3c">۳. موتور هوش مصنوعی</text>
+<text x="70" y="20" text-anchor="middle" font-size="13" font-weight="800" fill="#0b2a3c">۴. خروجی</text>
+<rect x="575" y="38" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="62" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">ERP (فروش، مالی، انبار)</text>
+<path d="M573 57 C540 57 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<rect x="575" y="88" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="112" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">CRM و باشگاه مشتریان</text>
+<path d="M573 107 C540 107 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<rect x="575" y="138" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="162" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">فروشگاه آنلاین / POS</text>
+<path d="M573 157 C540 157 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<rect x="575" y="188" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="212" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">تولید و کنترل کیفیت</text>
+<path d="M573 207 C540 207 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<rect x="575" y="238" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="262" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">شبکه‌های اجتماعی</text>
+<path d="M573 257 C540 257 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<rect x="575" y="288" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="312" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">اکسل‌ها و اسناد</text>
+<path d="M573 307 C540 307 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<rect x="575" y="338" width="145" height="38" rx="8" fill="#f5f8fa" stroke="#d9e3e8"/>
+<text x="647.5" y="362" text-anchor="middle" font-size="10.5" font-weight="400" fill="#0b2a3c">داده‌ی بازار و رقبا</text>
+<path d="M573 357 C540 357 545 210 532 210" stroke="#0e7c86" stroke-width="1.3" fill="none"/>
+<path d="M545 210 L532 210" stroke="#0e7c86" stroke-width="1.3" marker-end="url(#ar)"/>
+<rect x="380" y="100" width="150" height="220" rx="12" fill="#e6f5f4" stroke="#14a3a8" stroke-width="1.5"/>
+<text x="455" y="135" text-anchor="middle" font-size="12" font-weight="800" fill="#0b2a3c">انبار داده‌ی یکپارچه</text>
+<text x="455" y="165" text-anchor="middle" font-size="11" font-weight="400" fill="#0b2a3c">اتصال‌دهنده‌ها (API)</text>
+<text x="455" y="195" text-anchor="middle" font-size="11" font-weight="400" fill="#0b2a3c">پاک‌سازی و استانداردسازی</text>
+<text x="455" y="225" text-anchor="middle" font-size="11" font-weight="400" fill="#0b2a3c">امنیت و سطح دسترسی</text>
+<text x="455" y="255" text-anchor="middle" font-size="11" font-weight="400" fill="#0b2a3c">به‌روزرسانی لحظه‌ای</text>
+<text x="455" y="285" text-anchor="middle" font-size="11" font-weight="400" fill="#0b2a3c">اسناد و دانش سازمانی</text>
+<path d="M378 210 L352 210" stroke="#0e7c86" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="190" y="62" width="160" height="296" rx="14" fill="#0b2a3c"/>
+<text x="270" y="95" text-anchor="middle" font-size="11.5" font-weight="800" fill="#f2a33a">مدل‌های پیش‌بینی</text>
+<text x="270" y="114" text-anchor="middle" font-size="10.5" font-weight="400" fill="#ffffff">فروش، تقاضا، نقدینگی</text>
+<text x="270" y="151" text-anchor="middle" font-size="11.5" font-weight="800" fill="#f2a33a">مدل‌های زبانی (LLM)</text>
+<text x="270" y="170" text-anchor="middle" font-size="10.5" font-weight="400" fill="#ffffff">دستیار فارسی، محتوا، خلاصه</text>
+<text x="270" y="207" text-anchor="middle" font-size="11.5" font-weight="800" fill="#f2a33a">بهینه‌سازی</text>
+<text x="270" y="226" text-anchor="middle" font-size="10.5" font-weight="400" fill="#ffffff">قیمت، موجودی، توزیع</text>
+<text x="270" y="263" text-anchor="middle" font-size="11.5" font-weight="800" fill="#f2a33a">تشخیص ناهنجاری</text>
+<text x="270" y="282" text-anchor="middle" font-size="10.5" font-weight="400" fill="#ffffff">تقلب، خطا، افت کیفیت</text>
+<text x="270" y="319" text-anchor="middle" font-size="11.5" font-weight="800" fill="#f2a33a">عامل‌های خودکار</text>
+<text x="270" y="338" text-anchor="middle" font-size="10.5" font-weight="400" fill="#ffffff">اجرای اقدام با تأیید انسان</text>
+<path d="M188 210 L152 210" stroke="#0e7c86" stroke-width="2" marker-end="url(#ar)"/>
+<rect x="0" y="82" width="150" height="40" rx="8" fill="#fff3e0" stroke="#f2a33a"/>
+<text x="75" y="107" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b2a3c">پیشنهاد روزانه</text>
+<rect x="0" y="136" width="150" height="40" rx="8" fill="#fff3e0" stroke="#f2a33a"/>
+<text x="75" y="161" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b2a3c">هشدار هوشمند</text>
+<rect x="0" y="190" width="150" height="40" rx="8" fill="#fff3e0" stroke="#f2a33a"/>
+<text x="75" y="215" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b2a3c">داشبورد مدیریتی</text>
+<rect x="0" y="244" width="150" height="40" rx="8" fill="#fff3e0" stroke="#f2a33a"/>
+<text x="75" y="269" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b2a3c">چت‌بات و دستیار</text>
+<rect x="0" y="298" width="150" height="40" rx="8" fill="#fff3e0" stroke="#f2a33a"/>
+<text x="75" y="323" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b2a3c">اقدام خودکار در ERP</text>
+<path d="M75 352 C75 415 455 415 455 324" stroke="#f2a33a" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#ar)"/>
+<text x="265" y="432" text-anchor="middle" font-size="11" font-weight="400" fill="#5b6b78">تأیید یا رد پیشنهاد توسط کاربر ← بازخورد برای یادگیری مدل</text>
+</svg>
+
+  <div class="grid3" style="margin-top:4mm">
+    <div class="card"><h3>بدون تعویض ERP</h3><p>اتصال از طریق API، پایگاه داده یا خروجی دوره‌ای؛ سازگار با ERPهای رایج ایرانی و خارجی.</p></div>
+    <div class="card"><h3>انسان در حلقه</h3><p>هر پیشنهاد مهم قبل از اجرا توسط مسئول مربوطه تأیید می‌شود؛ کنترل همیشه دست سازمان است.</p></div>
+    <div class="card"><h3>امنیت و حریم داده</h3><p>امکان استقرار داخلی (On-Premise)، رمزنگاری، سطح دسترسی نقش‌محور و ثبت کامل لاگ.</p></div>
+  </div>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۳</span></div>
+</section>
+
+<!-- ============ 4. SMART ERP ============ -->
+<section class="page">
+  <span class="kicker">ERP هوشمند</span>
+  <h2>داده از هر بخش ERP، پیشنهاد برای هر بخش</h2>
+  <div class="bar"></div>
+  <table>
+    <thead><tr><th style="width:22mm">بخش</th><th style="width:58mm">داده‌ای که جمع می‌شود</th><th>کاری که هوش مصنوعی انجام می‌دهد / پیشنهاد می‌دهد</th></tr></thead>
+    <tbody>
+      <tr><td>فروش</td><td>فاکتورها، پیش‌فاکتورها، تخفیف‌ها، مناطق، نماینده‌ها</td><td>پیش‌بینی فروش هفتگی/ماهانه به تفکیک کالا و منطقه · شناسایی مشتریان در آستانه‌ی ریزش · پیشنهاد سقف تخفیف بهینه · تعیین هدف فروش واقع‌بینانه برای هر نماینده</td></tr>
+      <tr><td>انبار</td><td>ورود و خروج، موجودی، تاریخ انقضا، جابه‌جایی بین انبارها</td><td>پیشنهاد نقطه‌ی سفارش و حداقل/حداکثر موجودی · هشدار کالای راکد و نزدیک به انقضا · پیشنهاد انتقال موجودی بین انبارها/شعب</td></tr>
+      <tr><td>خرید و تأمین</td><td>سفارش‌های خرید، تأمین‌کنندگان، زمان تحویل، قیمت‌ها</td><td>تولید خودکار پیش‌نویس سفارش خرید · امتیازدهی به تأمین‌کنندگان (قیمت، کیفیت، تأخیر) · هشدار نوسان قیمت و پیشنهاد زمان خرید</td></tr>
+      <tr><td>تولید</td><td>BOM، برنامه تولید، ضایعات، توقف خط، کنترل کیفیت</td><td>برنامه‌ریزی تولید بر اساس پیش‌بینی تقاضا · ریشه‌یابی ضایعات · نگهداری پیشگیرانه‌ی تجهیزات · کنترل کیفیت تصویری با بینایی ماشین</td></tr>
+      <tr><td>مالی</td><td>اسناد حسابداری، چک‌ها، مطالبات، هزینه‌ها، بودجه</td><td>پیش‌بینی جریان نقدینگی ۹۰ روزه · اولویت‌بندی وصول مطالبات و پیش‌بینی ریسک نکول · کشف تراکنش‌های غیرعادی · گزارش مالی خودکار با توضیح متنی</td></tr>
+      <tr><td>منابع انسانی</td><td>حضور و غیاب، عملکرد، آموزش، جذب</td><td>غربالگری اولیه‌ی رزومه‌ها · پیش‌بینی ریسک ترک خدمت · پیشنهاد مسیر آموزشی · دستیار پاسخ به سؤالات پرسنلی (مرخصی، فیش، آیین‌نامه)</td></tr>
+      <tr><td>مشتری و خدمات</td><td>تماس‌ها، تیکت‌ها، شکایات، نظرسنجی‌ها</td><td>چت‌بات فارسی پاسخ‌گو (وضعیت سفارش، قیمت، موجودی) · دسته‌بندی و اولویت‌بندی خودکار شکایات · تحلیل احساس مشتری</td></tr>
+      <tr><td>مدیریت</td><td>همه‌ی موارد بالا به صورت یکپارچه</td><td>گزارش صبحگاهی خودکار برای مدیرعامل · پرسش به زبان فارسی از داده‌ها («فروش استان تهران در شهریور نسبت به پارسال؟») · شبیه‌سازی سناریو (اگر قیمت ۱۰٪ بالا برود؟)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:7mm;margin-bottom:3mm">نمونه‌ی پیشنهادهایی که کاربران کابوک هر روز دریافت می‌کنند</h3>
+  <div class="grid3">
+    <div class="sugg"><div class="hd"><span>انبار · سفارش خرید</span><span>۹۲٪</span></div>
+      <div class="bd">موجودی کالای <b>الف</b> در انبار مرکزی تا <b>۱۲ روز</b> دیگر تمام می‌شود. زمان تحویل تأمین‌کننده ۱۸ روز است. پیشنهاد: سفارش <b>۴۰۰ واحد</b> از امروز.
+        <div class="btns"><span>ثبت سفارش</span><span class="o">ویرایش</span></div></div></div>
+    <div class="sugg"><div class="hd"><span>فروش · ریسک ریزش</span><span>فوری</span></div>
+      <div class="bd"><b>۱۴ مشتری عمده</b> در ۴۵ روز گذشته خرید نکرده‌اند (برخلاف الگوی ماهانه‌شان). پیشنهاد: تماس نماینده + پیشنهاد ویژه‌ی شخصی‌سازی‌شده.
+        <div class="btns"><span>ارسال به CRM</span><span class="o">جزئیات</span></div></div></div>
+    <div class="sugg"><div class="hd"><span>مالی · نقدینگی</span><span>هشدار</span></div>
+      <div class="bd">با روند فعلی وصول، در <b>هفته‌ی سوم</b> کسری نقدینگی پیش‌بینی می‌شود. پیشنهاد: پیگیری ۸ مطالبه‌ی بزرگ‌تر از سررسید و جابه‌جایی دو پرداخت.
+        <div class="btns"><span>فهرست اقدام</span><span class="o">سناریو</span></div></div></div>
+  </div>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۴</span></div>
+</section>
+
+<!-- ============ 5. MARKETING & SALES ============ -->
+<section class="page">
+  <span class="kicker">بازاریابی، برند و فروش</span>
+  <h2>برند کابوک را با هوش مصنوعی<br>دیده‌تر و فروشنده‌تر کنیم</h2>
+  <div class="bar"></div>
+  <div class="grid2">
+    <div class="card"><div class="ico">۱</div><h3>تولید محتوای برند</h3>
+      <p>تولید پیش‌نویس پست، کپشن، متن تبلیغ، ایمیل و مقاله‌ی سئو با لحن ثابت برند کابوک؛ ساخت تصویر و ویدئوی کوتاه محصول؛ تقویم محتوایی ماهانه بر اساس مناسبت‌ها و ترندها.</p></div>
+    <div class="card"><div class="ico">۲</div><h3>بخش‌بندی هوشمند مشتری</h3>
+      <p>تحلیل RFM و رفتار خرید؛ شناسایی مشتریان وفادار، در حال ریزش و پرپتانسیل؛ پیشنهاد پیام و پیشنهاد اختصاصی برای هر بخش.</p></div>
+    <div class="card"><div class="ico">۳</div><h3>کمپین و سنجش اثر</h3>
+      <p>پیشنهاد کانال و بودجه‌ی بهینه؛ آزمون A/B خودکار؛ اتصال هزینه‌ی کمپین به فروش واقعی در ERP و محاسبه‌ی بازگشت سرمایه (ROI) هر کمپین.</p></div>
+    <div class="card"><div class="ico">۴</div><h3>شنود شبکه‌های اجتماعی</h3>
+      <p>رصد نام کابوک و رقبا در اینستاگرام، تلگرام و سایت‌ها؛ تحلیل احساس (مثبت/منفی) نظرات؛ هشدار فوری برای بحران‌های احتمالی برند.</p></div>
+    <div class="card"><div class="ico">۵</div><h3>قیمت‌گذاری و پیشنهاد محصول</h3>
+      <p>پیشنهاد قیمت و تخفیف بر اساس حاشیه‌ی سود، موجودی و رقبا؛ موتور «محصولات مکمل» برای فروش متقاطع در سایت و توسط نماینده‌ها.</p></div>
+    <div class="card"><div class="ico">۶</div><h3>دستیار نماینده‌ی فروش</h3>
+      <p>برنامه‌ی ویزیت روزانه‌ی بهینه، خلاصه‌ی سوابق هر مشتری قبل از تماس، پاسخ سریع به سؤالات فنی محصول و ثبت سفارش با پیام صوتی.</p></div>
+  </div>
+
+  <div class="card" style="margin-top:6mm;background:var(--amber2);border-color:#f6d39d">
+    <h3>سناریوی نمونه: کمپین بازگشت مشتری</h3>
+    <ul class="tick" style="margin-top:2mm">
+      <li><b>داده:</b> ERP نشان می‌دهد ۲۰۰ مشتری بیش از دو ماه خرید نکرده‌اند.</li>
+      <li><b>تحلیل:</b> هوش مصنوعی آن‌ها را بر اساس محصول مورد علاقه و حساسیت به قیمت در ۴ گروه دسته‌بندی می‌کند.</li>
+      <li><b>اقدام:</b> برای هر گروه پیامک/پیام اختصاصی با پیشنهاد متفاوت تولید و پس از تأیید بازاریاب ارسال می‌شود.</li>
+      <li><b>سنجش:</b> خرید‌های بعدی در ERP رصد و نرخ بازگشت و سود کمپین به‌صورت خودکار گزارش می‌شود.</li>
+    </ul>
+  </div>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۵</span></div>
+</section>
+
+<!-- ============ 6. OPERATIONS, ASSISTANTS ============ -->
+<section class="page">
+  <span class="kicker">عملیات و دستیارهای هوشمند</span>
+  <h2>زنجیره تأمین دقیق‌تر، کارکنان پربازده‌تر</h2>
+  <div class="bar"></div>
+
+  <h3 style="margin-bottom:3mm">زنجیره تأمین و توزیع</h3>
+  <div class="grid3">
+    <div class="card"><h3>پیش‌بینی تقاضا</h3><p>مدل‌هایی که فصل، مناسبت‌ها، تورم، قیمت و کمپین‌ها را در نظر می‌گیرند و برای هر کالا و منطقه تقاضا را پیش‌بینی می‌کنند.</p></div>
+    <div class="card"><h3>بهینه‌سازی توزیع</h3><p>چیدمان بهینه‌ی بار و مسیر ناوگان پخش، کاهش هزینه‌ی حمل و زمان تحویل به مشتری و نماینده.</p></div>
+    <div class="card"><h3>ریسک تأمین</h3><p>هشدار زودهنگام تأخیر تأمین‌کننده، کمبود مواد اولیه و نوسان نرخ ارز با پیشنهاد جایگزین.</p></div>
+  </div>
+
+  <h3 style="margin:5mm 0 3mm">دستیارهای هوش مصنوعی برای هر نقش</h3>
+  <table>
+    <thead><tr><th style="width:34mm">دستیار</th><th style="width:40mm">کاربر</th><th>چه کاری انجام می‌دهد</th></tr></thead>
+    <tbody>
+      <tr><td>دستیار مدیرعامل</td><td>مدیران ارشد</td><td>گزارش صبحگاهی، پاسخ به پرسش‌های آزاد از داده‌ها، خلاصه‌ی جلسات و پیگیری مصوبات</td></tr>
+      <tr><td>دستیار مشتری</td><td>مشتریان و نماینده‌ها</td><td>پاسخ ۲۴ ساعته در سایت، واتس‌اپ/تلگرام/بله؛ پیگیری سفارش، معرفی محصول، ثبت شکایت</td></tr>
+      <tr><td>دستیار دانش سازمانی</td><td>همه‌ی کارکنان</td><td>جستجوی هوشمند در آیین‌نامه‌ها، دستورالعمل‌ها، قراردادها و کاتالوگ‌ها به زبان فارسی</td></tr>
+      <tr><td>دستیار اسناد</td><td>مالی و اداری</td><td>استخراج خودکار اطلاعات از فاکتور، رسید و قرارداد (OCR فارسی) و ثبت در ERP</td></tr>
+      <tr><td>دستیار حقوقی-قراردادی</td><td>حقوقی و خرید</td><td>بررسی بندهای پرریسک قرارداد، مقایسه با قالب استاندارد و یادآوری سررسیدها</td></tr>
+      <tr><td>دستیار جلسات</td><td>تیم‌ها</td><td>تبدیل صدای جلسه به متن، صورت‌جلسه، تخصیص وظیفه و پیگیری</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid2" style="margin-top:5mm">
+    <div class="card" style="background:var(--navy);border:none;color:#fff">
+      <h3 style="color:var(--amber)">«یک روز کاری با هوش مصنوعی»</h3>
+      <ul class="tick" style="margin-top:1mm"><li style="color:#dbe7ee">صبح: مدیرعامل گزارش روزانه را در موبایل می‌خواند</li><li style="color:#dbe7ee">مدیر انبار ۳ سفارش خرید پیشنهادی را تأیید می‌کند</li><li style="color:#dbe7ee">بازاریاب کمپین آماده را بازبینی و ارسال می‌کند</li><li style="color:#dbe7ee">چت‌بات به ده‌ها پیام مشتری پاسخ داده است</li></ul>
+    </div>
+    <div class="card">
+      <h3>کنترل کیفیت و تولید</h3>
+      <ul class="tick">
+        <li>بازرسی تصویری محصول روی خط با دوربین و بینایی ماشین</li>
+        <li>پیش‌بینی خرابی تجهیزات از روی داده‌ی کارکرد</li>
+        <li>تحلیل علت ضایعات و پیشنهاد اصلاح فرایند</li>
+        <li>اتصال شکایات مشتری به سری ساخت محصول</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۶</span></div>
+</section>
+
+<!-- ============ 7. ROADMAP ============ -->
+<section class="page">
+  <span class="kicker">نقشه راه اجرا</span>
+  <h2>گام‌به‌گام، با نتیجه‌ی ملموس در هر فاز</h2>
+  <div class="bar"></div>
+  <p class="lead">برنامه طوری طراحی شده که از ماه دوم خروجی قابل‌مشاهده داشته باشد و سرمایه‌گذاری هر فاز بر اساس نتیجه‌ی فاز قبل تصمیم‌گیری شود.</p>
+
+  <div class="road">
+    <div class="step"><div class="ph">فاز ۰<small>۲ هفته</small></div><div class="bx"><h3>ممیزی و کشف فرصت</h3><p>جلسه با مدیران هر بخش، بررسی ERP و کیفیت داده، فهرست فرصت‌ها و اولویت‌بندی بر اساس «اثر × سهولت»، تعریف KPIهای مبنا.</p></div></div>
+    <div class="step"><div class="ph">فاز ۱<small>۴–۶ هفته</small></div><div class="bx"><h3>زیرساخت داده و داشبورد</h3><p>اتصال به ERP و منابع اصلی، ساخت انبار داده‌ی یکپارچه، داشبورد مدیریتی زنده و گزارش صبحگاهی خودکار.</p></div></div>
+    <div class="step"><div class="ph a">فاز ۲<small>۶–۸ هفته</small></div><div class="bx"><h3>پیروزی‌های سریع (Quick Wins)</h3><p>پیش‌بینی فروش و پیشنهاد خرید/موجودی، چت‌بات مشتری، تولید محتوای برند، دستیار دانش سازمانی.</p></div></div>
+    <div class="step"><div class="ph a">فاز ۳<small>۲–۳ ماه</small></div><div class="bx"><h3>هوشمندسازی عمیق</h3><p>پیش‌بینی نقدینگی، قیمت‌گذاری هوشمند، بهینه‌سازی توزیع، کشف ناهنجاری مالی، کنترل کیفیت تصویری.</p></div></div>
+    <div class="step"><div class="ph">فاز ۴<small>مستمر</small></div><div class="bx"><h3>عامل‌های خودکار و بهبود مستمر</h3><p>اجرای خودکار اقدامات کم‌ریسک (با قواعد تأیید)، بازآموزی مدل‌ها، آموزش کارکنان و گسترش به سایر شرکت‌های گروه سپرامین.</p></div></div>
+  </div>
+
+  <h3 style="margin:5mm 0 3mm">بسته‌های همکاری پیشنهادی</h3>
+  <div class="grid3">
+    <div class="pkg"><div class="nm">پایه</div><div class="ds">شروع سریع و کم‌هزینه</div>
+      <ul class="tick"><li>ممیزی داده (فاز ۰)</li><li>داشبورد مدیریتی</li><li>گزارش صبحگاهی خودکار</li><li>یک دستیار هوشمند</li></ul></div>
+    <div class="pkg hl"><span class="rib">پیشنهاد ما</span><div class="nm">رشد</div><div class="ds">فازهای ۰ تا ۲</div>
+      <ul class="tick"><li>همه‌ی امکانات پایه</li><li>پیش‌بینی فروش و موجودی</li><li>بازاریابی و محتوای هوشمند</li><li>چت‌بات مشتری</li></ul></div>
+    <div class="pkg"><div class="nm">سازمانی</div><div class="ds">برنامه‌ی کامل تحول</div>
+      <ul class="tick"><li>همه‌ی فازها</li><li>استقرار داخلی امن</li><li>عامل‌های خودکار</li><li>پشتیبانی و آموزش مستمر</li></ul></div>
+  </div>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۷</span></div>
+</section>
+
+<!-- ============ 8. KPI & CTA ============ -->
+<section class="page">
+  <span class="kicker">سنجش موفقیت و گام بعدی</span>
+  <h2>آنچه اندازه می‌گیریم،<br>بهبود می‌دهیم</h2>
+  <div class="bar"></div>
+
+  <table>
+    <thead><tr><th style="width:38mm">حوزه</th><th>شاخص کلیدی (KPI)</th><th style="width:44mm">روش سنجش</th></tr></thead>
+    <tbody>
+      <tr><td>فروش</td><td>دقت پیش‌بینی فروش، نرخ ریزش مشتری، سهم فروش متقاطع</td><td>مقایسه با داده‌ی ERP</td></tr>
+      <tr><td>انبار و تأمین</td><td>روزهای موجودی، کالای راکد، دفعات کمبود (Stock-out)</td><td>گزارش ماهانه‌ی انبار</td></tr>
+      <tr><td>بازاریابی</td><td>بازگشت سرمایه‌ی کمپین، هزینه‌ی جذب مشتری، تعامل محتوا</td><td>اتصال کمپین به فاکتور</td></tr>
+      <tr><td>خدمات مشتری</td><td>زمان پاسخ، درصد پاسخ خودکار، رضایت مشتری</td><td>لاگ چت‌بات + نظرسنجی</td></tr>
+      <tr><td>مالی</td><td>دوره‌ی وصول مطالبات، دقت پیش‌بینی نقدینگی</td><td>اسناد مالی</td></tr>
+      <tr><td>بهره‌وری</td><td>ساعت صرفه‌جویی‌شده در گزارش‌گیری و کارهای تکراری</td><td>ثبت زمان قبل/بعد</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid2" style="margin-top:7mm">
+    <div class="card"><h3>چه چیزی از کابوک نیاز داریم؟</h3>
+      <ul class="tick">
+        <li>دسترسی (فقط‌خواندنی) به ERP یا خروجی داده‌ها</li>
+        <li>یک نماینده‌ی تصمیم‌گیر از هر بخش کلیدی</li>
+        <li>اسناد برند، کاتالوگ محصولات و دستورالعمل‌ها</li>
+        <li>اهداف تجاری سال جاری کابوک</li>
+      </ul></div>
+    <div class="card"><h3>اصول ما در اجرا</h3>
+      <ul class="tick">
+        <li>محرمانگی کامل داده‌ها و قرارداد عدم افشا (NDA)</li>
+        <li>شروع کوچک، اثبات ارزش، سپس گسترش</li>
+        <li>انسان در حلقه برای تصمیم‌های مهم</li>
+        <li>انتقال دانش و آموزش تیم داخلی کابوک</li>
+      </ul></div>
+  </div>
+
+  <div class="cta" style="margin-top:8mm">
+    <h3>گام اول: جلسه‌ی کشف فرصت (رایگان)</h3>
+    <p>در یک جلسه‌ی ۹۰ دقیقه‌ای با مدیران کابوک، سه فرصت با بیشترین اثر را شناسایی و یک نمونه‌ی اولیه (Pilot) روی داده‌های واقعی پیشنهاد می‌کنیم.</p>
+    <div class="row">
+      <div>وب‌سایت<br><b class="ltr">sapramin.com/kabok</b></div>
+      <div>تلفن<br><b>—</b></div>
+      <div>ایمیل<br><b>—</b></div>
+    </div>
+  </div>
+  <p class="note">اعداد و درصدهای این بروشور اهداف پیشنهادی هستند و پس از ممیزی داده‌های کابوک (فاز ۰) به‌صورت دقیق تعیین می‌شوند.</p>
+  <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۸</span></div>
+</section>
+
+</body>
+</html>
