@@ -1,30 +1,22 @@
 #!/usr/bin/env python3
-"""Generate the Persian and English KING 500-piece catalogue pages (HTML).
+"""Generate the Persian and English KING puzzle trade catalogues (HTML).
 
-Run `python3 build.py` and then `node render.mjs` to produce the PDFs.
-Product photos in assets/img are used exactly as supplied (crop only).
+Products are read from data/products.json and grouped by collection
+(500, 300, 100, 2-in-1, 60, 40 pieces, accessories). Run `python3 build.py`
+and then `node render.cjs` to produce the PDFs.
+
+Product photos in assets/img/products are the client's own photos, cropped
+only; nothing else is changed.
 """
+import json
 from html import escape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 ZW = "‌"  # zero-width non-joiner for Persian compound words
 
-# ---------------------------------------------------------------- data
-PRODUCTS = [
-    # code, Persian name, English name, artist / origin
-    ("001", f"شطرنج{ZW}بازان", "The Chess Players", "After Moritz Retzsch"),
-    ("002", "شام آخر", "The Last Supper", "After Leonardo da Vinci"),
-    ("003", "بوسه", "The Kiss", "Gustav Klimt"),
-    ("004", "موج بزرگ کاناگاوا", "The Great Wave", "Katsushika Hokusai"),
-    ("005", "شب پرستاره", "The Starry Night", "Vincent van Gogh"),
-    ("006", f"تاج{ZW}گذاری ناپلئون", "The Coronation of Napoleon", "Jacques-Louis David"),
-    ("007", "گاراژ کلاسیک", "Classic Garage", "Vintage Illustration"),
-    ("008", "نقشهٔ جهان کهن", "Antique World Map", "Henricus Hondius"),
-    ("009", "مرگ سقراط", "The Death of Socrates", "Jacques-Louis David"),
-]
-SELECTED = ["003", "004", "008"]  # thumbnails on the About page
-COVER_IMG = "assets/img/king-500-cover.jpg"
+PRODUCTS = json.loads((ROOT / "data" / "products.json").read_text(encoding="utf-8"))
+COVER_CODE = "KING-500-006"
 
 FA_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
 
@@ -50,41 +42,134 @@ def icon(name):
     return f'<svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[name]}</svg>'
 
 
+# ---------------------------------------------------------------- collections
+# key, big numeral, Latin caps under it, layout, and copy per language.
+COLLECTIONS = [
+    {
+        "key": "500", "num": "500", "caps": "Pieces", "layout": "rows", "hero": "KING-500-005",
+        "fa": {
+            "title": "پازل ۵۰۰ قطعه", "series": "High Quality Collection", "short": "۵۰۰ قطعه",
+            "desc": (f"شاهکارهای ماندگار نقاشی و طرح{ZW}های کلاسیک، با برش دقیق و چاپ با وضوح بالا؛ "
+                     f"انتخابی شایسته برای دوستداران هنر و پازل."),
+        },
+        "en": {
+            "title": "500 Pieces Puzzles", "series": "High Quality Collection", "short": "500 Pieces",
+            "desc": ("Timeless masterpieces and classic designs, precisely cut and printed in high "
+                     "resolution — a refined choice for lovers of art and puzzles."),
+        },
+    },
+    {
+        "key": "300", "num": "300", "caps": "Pieces", "layout": "rows", "hero": None,
+        "fa": {
+            "title": "پازل ۳۰۰ قطعه", "series": "Jigsaw Puzzle", "short": "۳۰۰ قطعه",
+            "desc": (f"محبوب{ZW}ترین شخصیت{ZW}های کارتونی و انیمیشنی در قالب پازل ۳۰۰ قطعه؛ "
+                     f"چالشی سرگرم{ZW}کننده با تصاویری پرجزئیات و رنگ{ZW}های شاد."),
+        },
+        "en": {
+            "title": "300 Pieces Puzzles", "series": "Jigsaw Puzzle", "short": "300 Pieces",
+            "desc": ("Best-loved cartoon and animation characters in a 300-piece format — an engaging "
+                     "challenge with detailed, colourful artwork."),
+        },
+    },
+    {
+        "key": "100", "num": "100", "caps": "Pieces", "layout": "rows", "hero": None,
+        "fa": {
+            "title": "پازل ۱۰۰ قطعه", "series": "Jigsaw Puzzle", "short": "۱۰۰ قطعه",
+            "desc": (f"طرح{ZW}های شاد و پرطرفدار در قالب پازل ۱۰۰ قطعه؛ "
+                     f"سرگرمی لذت{ZW}بخش برای کل خانواده و قدمی خوب برای آشنایی کودکان با دنیای پازل."),
+        },
+        "en": {
+            "title": "100 Pieces Puzzles", "series": "Jigsaw Puzzle", "short": "100 Pieces",
+            "desc": ("Bright, popular designs in a 100-piece format — enjoyable fun for the whole family "
+                     "and a great first step into puzzling."),
+        },
+    },
+    {
+        "key": "2in1", "num": "2 in 1", "caps": "100 + 60 Pieces", "layout": "grid", "hero": None,
+        "fa": {
+            "title": f"دو پازل در یک جعبه", "series": "2 Fantastic Puzzles", "short": "۲ در ۱",
+            "desc": (f"دو پازل ۱۰۰ و ۶۰ قطعه با دو تصویر متفاوت در یک جعبه؛ "
+                     f"دو برابر سرگرمی با یک خرید."),
+        },
+        "en": {
+            "title": "Two Puzzles in One Box", "series": "2 Fantastic Puzzles", "short": "2 in 1",
+            "desc": ("Two puzzles of 100 and 60 pieces with two different pictures in one box — "
+                     "double the fun in a single purchase."),
+        },
+    },
+    {
+        "key": "60", "num": "60", "caps": "Pieces · Big Size", "layout": "rows", "hero": None,
+        "fa": {
+            "title": "پازل ۶۰ قطعه کودکانه", "series": "Big Size", "short": "۶۰ قطعه",
+            "desc": (f"قطعات بزرگ و تصاویر شاد از شخصیت{ZW}های محبوب کودکان؛ "
+                     f"ساخته{ZW}شده برای دست{ZW}های کوچک."),
+        },
+        "en": {
+            "title": "60 Pieces Kids Puzzles", "series": "Big Size", "short": "60 Pieces",
+            "desc": ("Big Size pieces and cheerful artwork featuring children's favourite characters — "
+                     "made for little hands."),
+        },
+    },
+    {
+        "key": "40", "num": "40", "caps": "Pieces · Big Size", "layout": "rows", "hero": None,
+        "fa": {
+            "title": f"پازل ۴۰ قطعه کودکانه آموزشی", "series": "Educational · Big Size", "short": "۴۰ قطعه",
+            "desc": (f"پازل{ZW}های آموزشی با قطعات بزرگ برای کودکان ۴ سال به بالا؛ "
+                     f"یادگیری مفاهیم اولیه همراه با بازی."),
+        },
+        "en": {
+            "title": "40 Pieces Educational Puzzles", "series": "Educational · Big Size", "short": "40 Pieces",
+            "desc": "Educational Big Size puzzles for ages 4+ — learning first concepts through play.",
+        },
+    },
+    {
+        "key": "accessory", "num": "", "caps": "Accessories", "layout": "feature", "hero": None,
+        "fa": {
+            "title": "لوازم جانبی", "series": "Accessories", "short": "لوازم جانبی",
+            "desc": f"محصولات تکمیلی کینگ برای نگهداری و نمایش پازل{ZW}های تکمیل{ZW}شده.",
+        },
+        "en": {
+            "title": "Accessories", "series": "Accessories", "short": "Accessories",
+            "desc": "KING essentials for preserving and displaying completed puzzles.",
+        },
+    },
+]
+
+
+def items_of(key):
+    return [p for p in PRODUCTS if p["collection"] == key]
+
+
 # ---------------------------------------------------------------- copy
 FA = {
     "lang": "fa", "dir": "rtl",
-    "doc_title": "کاتالوگ پازل ۵۰۰ قطعه کینگ",
-    "foot_name": "پازل ۵۰۰ قطعه کینگ",
-    "cover_title": "پازل ۵۰۰ قطعه کینگ",
+    "doc_title": "کاتالوگ محصولات پازل کینگ",
+    "foot_name": "کاتالوگ محصولات کینگ",
+    "cover_title": "کاتالوگ محصولات پازل کینگ",
     "slogan_fa": f"کیفیت هرگز از مد نمی{ZW}افتد",
     "about_head": "معرفی کینگ",
     "about_eyebrow": "About KING",
     "about_h2": "کینگ؛ اصالت در هر قطعه",
     "about_lead": (
-        f"کینگ برندی است که کیفیت را معیار اصلی کار خود می{ZW}داند. در مجموعهٔ پازل{ZW}های ۵۰۰ قطعه، "
-        f"آثار ماندگار هنری و طرح{ZW}های محبوب با دقت در ساخت و توجه به جزئیات به پازل تبدیل شده{ZW}اند "
-        f"تا محصولی قابل اعتماد و ارزشمند برای فروشگاه{ZW}ها، پخش{ZW}کنندگان و دوستداران پازل فراهم شود."
+        f"کینگ برندی است که کیفیت را معیار اصلی کار خود می{ZW}داند. از پازل{ZW}های ۵۰۰ قطعه با آثار ماندگار هنری "
+        f"تا پازل{ZW}های آموزشی کودکان، هر محصول با دقت در ساخت و توجه به جزئیات تولید می{ZW}شود تا انتخابی "
+        f"قابل اعتماد و ارزشمند برای فروشگاه{ZW}ها، پخش{ZW}کنندگان و خانواده{ZW}ها باشد."
     ),
-    "intro_eyebrow": "KING 500 PIECES PUZZLE",
-    "intro_h3": "پازل ۵۰۰ قطعه کینگ",
+    "range_title": f"مجموعه{ZW}های کینگ",
+    "range_em": "The Range",
+    "designs_word": "طرح",
+    "items_word": "محصول",
+    "page_word": "صفحه",
+    "intro_title": "پازل کینگ",
     "intro": (
-        f"پازل{ZW}های ۵۰۰ قطعه کینگ با ترکیب کیفیت ساخت، برش دقیق و چاپ با وضوح بالا، "
-        f"تجربه{ZW}ای لذت{ZW}بخش از ساخت پازل ارائه می{ZW}کنند. تنوع بالای طرح{ZW}ها، این مجموعه را "
-        f"برای سلیقه{ZW}ها و علاقه{ZW}مندی{ZW}های گوناگون به انتخابی جذاب تبدیل کرده است."
+        f"پازل{ZW}های کینگ با ترکیب کیفیت ساخت، برش دقیق و چاپ با وضوح بالا، تجربه{ZW}ای لذت{ZW}بخش از "
+        f"ساخت پازل ارائه می{ZW}کنند. تنوع بالای طرح{ZW}ها، این مجموعه را برای سلیقه{ZW}ها و "
+        f"علاقه{ZW}مندی{ZW}های گوناگون به انتخابی جذاب تبدیل کرده است."
     ),
-    "specs": [
-        ("برند", "KING", True),
-        ("تعداد قطعات", "500 PIECES", True),
-        (f"طرح{ZW}های این کاتالوگ", f"{fa_num(len(PRODUCTS))} طرح", False),
-        ("کد محصولات", f"KING-500-001 — {PRODUCTS[-1][0]}", True),
-    ],
-    "badge_sub": "قطعه",
-    "selected": f"گزیده{ZW}ای از طرح{ZW}ها",
-    "selected_em": "Selected Designs",
     "features_head": f"ویژگی{ZW}های محصول",
     "features_eyebrow": "PRODUCT FEATURES",
     "features_h2": f"ویژگی{ZW}های محصول",
-    "features_p": f"چهار ویژگی که کیفیت پازل{ZW}های ۵۰۰ قطعه کینگ را تعریف می{ZW}کنند.",
+    "features_p": f"چهار ویژگی که کیفیت پازل{ZW}های کینگ را تعریف می{ZW}کنند.",
     "features": [
         ("layers", "مقوای آبی درجه یک", "Premium Blue Board",
          "استفاده از مقوای آبی درجه یک برای ایجاد کیفیت و استحکام مناسب قطعات."),
@@ -95,12 +180,17 @@ FA = {
         ("grid", "تنوع بالای طرح", "Wide Variety of Designs",
          f"تنوع بالای طرح{ZW}ها برای سلیقه{ZW}ها و علاقه{ZW}مندی{ZW}های مختلف."),
     ],
-    "designs_head": f"مجموعه طرح{ZW}ها",
+    "collection_word": "مجموعه",
+    "stat_designs": f"طرح{ZW}ها",
+    "stat_codes": "کد محصولات",
+    "stat_factory": "کد کارخانه",
     "pcs_small": "قطعه",
     "brand_small": "برند",
-    "closing_pieces": "پازل ۵۰۰ قطعه",
-    "list_head": f"اسامی طرح{ZW}ها",
-    "list_caps": "THE DESIGNS",
+    "code_small": "کد",
+    "index_head": "فهرست محصولات",
+    "index_caps": "PRODUCT INDEX",
+    "index_note": f"برای ثبت سفارش، کد محصول را اعلام کنید.",
+    "closing_line": "پازل کینگ",
     "contact_head": "ارتباط با ما",
     "contact_caps": "CONTACT US",
     "contact": [
@@ -114,37 +204,32 @@ FA = {
 
 EN = {
     "lang": "en", "dir": "ltr",
-    "doc_title": "KING 500 Pieces Puzzle Catalogue",
-    "foot_name": "KING 500 Pieces Puzzle",
+    "doc_title": "KING Puzzle Catalogue",
+    "foot_name": "KING Puzzle Catalogue",
     "about_head": "About KING",
     "about_eyebrow": "The Brand",
     "about_h2": "KING — Authenticity in Every Piece",
     "about_lead": (
-        "KING is a brand that holds quality as its defining standard. In the 500-piece puzzle collection, "
-        "timeless works of art and much-loved designs are turned into puzzles with careful craftsmanship and "
-        "close attention to detail, creating a reliable, valuable product for retailers, distributors and "
-        "puzzle enthusiasts alike."
+        "KING is a brand that holds quality as its defining standard. From 500-piece puzzles of timeless "
+        "works of art to educational puzzles for young children, every product is made with careful "
+        "craftsmanship and close attention to detail — a reliable, valuable choice for retailers, "
+        "distributors and families alike."
     ),
-    "intro_eyebrow": "THE COLLECTION",
-    "intro_h3": "KING 500 Pieces Puzzle",
+    "range_title": "The KING Range",
+    "range_em": "at a glance",
+    "designs_word": "designs",
+    "items_word": "products",
+    "page_word": "page",
+    "intro_title": "KING Puzzles",
     "intro": (
-        "KING 500-piece puzzles combine quality construction, precise cutting and high-resolution printing "
-        "to deliver a genuinely enjoyable puzzling experience. A wide variety of designs makes the collection "
-        "an attractive choice for every taste and interest."
+        "KING puzzles combine quality construction, precise cutting and high-resolution printing to deliver "
+        "a genuinely enjoyable puzzling experience. A wide variety of designs makes the range an attractive "
+        "choice for every taste and interest."
     ),
-    "specs": [
-        ("Brand", "KING", True),
-        ("Piece count", "500 PIECES", True),
-        ("Designs in this catalogue", f"{len(PRODUCTS)} DESIGNS", True),
-        ("Product codes", f"KING-500-001 — {PRODUCTS[-1][0]}", True),
-    ],
-    "badge_sub": "in every puzzle",
-    "selected": "Selected Designs",
-    "selected_em": "from the collection",
     "features_head": "Product Features",
     "features_eyebrow": "WHY KING",
     "features_h2": "Product Features",
-    "features_p": "Four qualities that define every KING 500-piece puzzle.",
+    "features_p": "Four qualities that define every KING puzzle.",
     "features": [
         ("layers", "Premium Blue Board", None,
          "Premium-grade blue board gives every piece lasting quality and strength."),
@@ -155,12 +240,17 @@ EN = {
         ("grid", "Wide Variety of Designs", None,
          "A wide range of designs to suit every taste and interest."),
     ],
-    "designs_head": "The Designs",
+    "collection_word": "Collection",
+    "stat_designs": "Designs",
+    "stat_codes": "Product codes",
+    "stat_factory": "Factory code",
     "pcs_small": "per puzzle",
     "brand_small": "Brand",
-    "closing_pieces": "500 Pieces Puzzle Collection",
-    "list_head": "The Designs",
-    "list_caps": "COLLECTION INDEX",
+    "code_small": "Code",
+    "index_head": "Product Index",
+    "index_caps": "ORDER REFERENCE",
+    "index_note": "Please quote the product code when ordering.",
+    "closing_line": "Puzzle Collection",
     "contact_head": "Contact Us",
     "contact_caps": "GET IN TOUCH",
     "contact": [
@@ -177,11 +267,11 @@ ORN = '<div class="ornament"><i></i><b></b><i></i></div>'
 FRAME = '<div class="frame"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span></div>'
 
 
-def img(code):
-    return f"assets/img/king-500-{code}.jpg"
+def num(t, n):
+    return fa_num(n) if t["lang"] == "fa" else str(n)
 
 
-def head(t, title, caps):
+def head(title, caps):
     return (f'<header class="running-head"><span class="title">{escape(title)}</span>'
             f'<span class="caps latin">{escape(caps)}</span></header>')
 
@@ -192,7 +282,60 @@ def foot(t, folio):
             f'<span class="caps latin">KING COLLECTION</span></footer>')
 
 
-def page_cover(t):
+def panel(p, cls="panel"):
+    return f'<div class="{cls}"><img src="{p["img"]}" alt="{escape(p["name_en"])}"></div>'
+
+
+def code_range(items):
+    if len(items) == 1:
+        return items[0]["code"]
+    return f'{items[0]["code"]} — {items[-1]["code"].rsplit("-", 1)[1]}'
+
+
+def pcs_box(t, p):
+    label = p["pieces"]
+    if not label:
+        return ""
+    return (f'<div class="pcs"><span class="n latin">{escape(label)}</span>'
+            f'<span class="l"><span class="caps latin">Pieces</span><small>{escape(t["pcs_small"])}</small></span></div>')
+
+
+def names(t, p, tag="h3"):
+    fa = t["lang"] == "fa"
+    name = p["name_fa"] if fa else p["name_en"]
+    variant = p["variant_fa"] if fa else p["variant_en"]
+    out = f'<{tag}>{escape(name)}</{tag}>'
+    if variant:
+        out += f'<div class="variant">{escape(variant)}</div>'
+    if fa:
+        alt = p["name_en"] + (f' — {p["variant_en"]}' if p["variant_en"] else "")
+        out += f'<div class="en-name latin">{escape(alt)}</div>'
+    if p["artist"]:
+        out += f'<div class="artist latin">{escape(p["artist"])}</div>'
+    return out
+
+
+def tags(p):
+    if not p["badges"]:
+        return ""
+    return f'<div class="tags latin">{" · ".join(escape(b) for b in p["badges"])}</div>'
+
+
+def factory(t, p):
+    if not p["factory_code"]:
+        return ""
+    return (f'<div class="brand-mini"><small>{escape(t["code_small"])}</small>'
+            f'<b class="latin">{escape(p["factory_code"])}</b></div>')
+
+
+def meta(t, p):
+    return (f'<div class="meta">{pcs_box(t, p)}'
+            f'<div class="brand-mini"><small>{escape(t["brand_small"])}</small><b class="latin">KING</b></div>'
+            f'{factory(t, p)}</div>')
+
+
+# ---------------------------------------------------------------- pages
+def page_cover(t, hero):
     fa = t["lang"] == "fa"
     title = f'<div class="title-fa">{escape(t["cover_title"])}</div>' if fa else ""
     slogan_fa = f'<p class="slogan-fa">{escape(FA["slogan_fa"])}</p>' if fa else ""
@@ -202,10 +345,10 @@ def page_cover(t):
   <div class="cover-inner">
     <img class="logo" src="assets/img/king-logo.png" alt="KING">
     <h1 class="brand latin">KING</h1>
-    <div class="collection caps latin">500 Pieces Puzzle Collection</div>
+    <div class="collection caps latin">Puzzle Collection · Product Catalogue</div>
     {ORN}
     {title}
-    <figure class="figure"><div class="panel"><img src="{COVER_IMG}" alt="KING 500 pieces puzzle box"></div></figure>
+    <figure class="figure">{panel(hero)}</figure>
     <div class="after ornament solid"><i></i><b></b><i></i></div>
     {slogan_fa}
     <p class="slogan-en">Quality Never Goes Out of Style</p>
@@ -213,39 +356,44 @@ def page_cover(t):
 </section>'''
 
 
-def page_about(t, folio):
-    fa = t["lang"] == "fa"
-    specs = "".join(
-        f'<div><dt>{escape(k)}</dt><dd class="{"latin" if latin else ""}">{escape(v)}</dd></div>'
-        for k, v, latin in t["specs"])
-    by_code = {p[0]: p for p in PRODUCTS}
-    thumbs = "".join(
-        f'<figure><div class="panel"><img src="{img(c)}" alt=""></div>'
-        f'<figcaption>{escape(by_code[c][1] if fa else by_code[c][2])}</figcaption></figure>'
-        for c in SELECTED)
+def tile(big, name, meta_line):
+    return f'''
+      <div class="tile">
+        {big}
+        <div class="tname">{escape(name)}</div>
+        <div class="tmeta">{escape(meta_line)}</div>
+      </div>'''
+
+
+def page_about(t, folio, starts):
+    tiles = []
+    for c in COLLECTIONS:
+        items = items_of(c["key"])
+        if not items:
+            continue
+        ct = c[t["lang"]]
+        big = (f'<div class="tnum latin">{escape(c["num"])}</div>' if c["num"]
+               else f'<div class="ticon">{icon("puzzle")}</div>')
+        word = t["designs_word"] if c["key"] != "accessory" else t["items_word"]
+        tiles.append(tile(big, ct["short"],
+                          f'{num(t, len(items))} {word} · {t["page_word"]} {num(t, starts[c["key"]])}'))
+    tiles.append(tile(f'<div class="ticon">{icon("grid")}</div>', t["index_head"],
+                      f'{num(t, len(PRODUCTS))} {t["items_word"]} · {t["page_word"]} {num(t, starts["index"])}'))
     return f'''
 <section class="page about">
-  {head(t, t["about_head"], "KING · 500 PIECES")}
+  {head(t["about_head"], "KING · PUZZLE COLLECTION")}
   <div class="body">
     <div class="eyebrow caps latin">{escape(t["about_eyebrow"])}</div>
     <h2>{escape(t["about_h2"])}</h2>
     <p class="lead">{escape(t["about_lead"])}</p>
-    <div class="split">
-      <div>
-        <div class="eyebrow caps latin">{escape(t["intro_eyebrow"])}</div>
-        <h3>{escape(t["intro_h3"])}</h3>
-        <p class="intro">{escape(t["intro"])}</p>
-        <dl class="specs">{specs}</dl>
-      </div>
-      <div class="badge">
-        <div class="num latin">500</div>
-        <div class="caps latin">Pieces</div>
-        {ORN}
-        <div class="sub">{escape(t["badge_sub"])}</div>
-      </div>
+    <div class="section-title"><strong>{escape(t["range_title"])}</strong><span class="line"></span><em>{escape(t["range_em"])}</em></div>
+    <div class="tiles">{"".join(tiles)}
     </div>
-    <div class="section-title"><strong>{escape(t["selected"])}</strong><span class="line"></span><em>{escape(t["selected_em"])}</em></div>
-    <div class="thumbs">{thumbs}</div>
+    <div class="intro-box">
+      <div class="eyebrow caps latin">KING PUZZLE</div>
+      <h3>{escape(t["intro_title"])}</h3>
+      <p class="intro">{escape(t["intro"])}</p>
+    </div>
   </div>
   {foot(t, folio)}
 </section>'''
@@ -265,7 +413,7 @@ def page_features(t, folio):
       </article>''')
     return f'''
 <section class="page features">
-  {head(t, t["features_head"], "KING · 500 PIECES")}
+  {head(t["features_head"], "KING · PUZZLE COLLECTION")}
   <div class="body">
     <div class="head">
       <div class="eyebrow caps latin">{escape(t["features_eyebrow"])}</div>
@@ -280,57 +428,146 @@ def page_features(t, folio):
 </section>'''
 
 
-def product_block(t, p, flip):
-    fa = t["lang"] == "fa"
-    code, name_fa, name_en, artist = p
-    if fa:
-        names = (f'<h3>{escape(name_fa)}</h3>'
-                 f'<div class="en-name latin">{escape(name_en)}</div>'
-                 f'<div class="artist latin">{escape(artist)}</div>')
-    else:
-        names = (f'<h3>{escape(name_en)}</h3>'
-                 f'<div class="artist">{escape(artist)}</div>')
+def stats(t, c, items):
+    cells = [(t["stat_designs"], f'{num(t, len(items))}', False),
+             (t["stat_codes"], code_range(items), True)]
+    fcodes = sorted({p["factory_code"] for p in items if p["factory_code"]})
+    if fcodes:
+        cells.append((t["stat_factory"], " · ".join(fcodes), True))
+    return "".join(
+        f'<div><span class="k">{escape(k)}</span><span class="v{" latin" if latin else ""}">{escape(v)}</span></div>'
+        for k, v, latin in cells)
+
+
+def page_divider(t, folio, idx, c, items):
+    ct = c[t["lang"]]
+    hero = next((p for p in items if p["code"] == c["hero"]), None) or max(items, key=lambda p: p["hero_score"])
+    big = (f'<div class="dnum latin">{escape(c["num"])}</div>' if c["num"] else "")
+    return f'''
+<section class="page divider">
+  {FRAME}
+  <div class="divider-inner">
+    <div class="eyebrow caps latin">Collection {idx:02d}</div>
+    {big}
+    <div class="dcaps caps latin">{escape(c["caps"])}</div>
+    {ORN}
+    <h2>{escape(ct["title"])}</h2>
+    <div class="dseries latin">{escape(ct["series"])}</div>
+    <p class="ddesc">{escape(ct["desc"])}</p>
+    <figure class="dfig">{panel(hero)}</figure>
+    <div class="dstats">{stats(t, c, items)}</div>
+  </div>
+  <div class="dfolio latin">{folio:02d}</div>
+</section>'''
+
+
+def product_row(t, p, flip):
     return f'''
       <article class="product{" flip" if flip else ""}">
-        <div class="panel"><img src="{img(code)}" alt="{escape(name_en)}"></div>
+        {panel(p)}
         <div class="info">
-          <div class="code caps latin">KING-500-{code}</div>
-          {names}
+          <div class="code caps latin">{escape(p["code"])}</div>
+          {names(t, p)}
+          {tags(p)}
           <div class="rule-short"></div>
-          <div class="meta">
-            <div class="pcs"><span class="n latin">500</span><span class="l"><span class="caps latin">Pieces</span><small>{escape(t["pcs_small"])}</small></span></div>
-            <div class="brand-mini"><small>{escape(t["brand_small"])}</small><b class="latin">KING</b></div>
-          </div>
+          {meta(t, p)}
         </div>
       </article>'''
 
 
-def page_products(t, folio, items):
-    blocks = "".join(product_block(t, p, i % 2 == 1) for i, p in enumerate(items))
-    caps = f"Designs {items[0][0]} — {items[-1][0]}"
+def product_card(t, p):
+    return f'''
+      <article class="pcard">
+        {panel(p)}
+        <div class="info">
+          <div class="code caps latin">{escape(p["code"])}</div>
+          {names(t, p)}
+          {meta(t, p)}
+        </div>
+      </article>'''
+
+
+def page_products(t, folio, c, items):
+    ct = c[t["lang"]]
+    caps = f'KING · {c["caps"]}' if c["key"] != "2in1" else "KING · 2 FANTASTIC PUZZLES"
+    if c["layout"] == "grid":
+        inner = f'<div class="pgrid">{"".join(product_card(t, p) for p in items)}\n  </div>'
+    else:
+        rows = "".join(product_row(t, p, i % 2 == 1) for i, p in enumerate(items))
+        inner = f'<div class="products n{len(items)}">{rows}\n  </div>'
     return f'''
 <section class="page designs">
-  {head(t, t["designs_head"], caps)}
-  <div class="body"><div class="products">{blocks}
-  </div></div>
+  {head(ct["title"], caps)}
+  <div class="body">{inner}</div>
+  {foot(t, folio)}
+</section>'''
+
+
+def page_feature(t, folio, idx, c, items):
+    """Accessories: divider and product on one page."""
+    ct = c[t["lang"]]
+    blocks = "".join(f'''
+    <article class="feature-item">
+      {panel(p)}
+      <div class="info">
+        <div class="code caps latin">{escape(p["code"])}</div>
+        {names(t, p, "h3")}
+        <div class="rule-short"></div>
+        {meta(t, p)}
+      </div>
+    </article>''' for p in items)
+    return f'''
+<section class="page divider accessory">
+  {FRAME}
+  <div class="divider-inner">
+    <div class="eyebrow caps latin">Collection {idx:02d}</div>
+    <div class="dcaps caps latin">{escape(c["caps"])}</div>
+    {ORN}
+    <h2>{escape(ct["title"])}</h2>
+    <p class="ddesc">{escape(ct["desc"])}</p>
+    {blocks}
+  </div>
+  <div class="dfolio latin">{folio:02d}</div>
+</section>'''
+
+
+def page_index(t, folio):
+    fa = t["lang"] == "fa"
+    groups = []
+    for c in COLLECTIONS:
+        items = items_of(c["key"])
+        if not items:
+            continue
+        ct = c[t["lang"]]
+        rows = []
+        for p in items:
+            nm = p["name_fa"] if fa else p["name_en"]
+            var = p["variant_fa"] if fa else p["variant_en"]
+            label = nm + (f" — {var}" if var else "")
+            rows.append(f'<li><span class="cd latin">{escape(p["code"])}</span>'
+                        f'<span class="nm">{escape(label)}</span><span class="dots"></span>'
+                        f'<span class="pc latin">{escape(p["pieces"] or "—")}</span></li>')
+        groups.append(f'<div class="igroup"><div class="ihead"><strong>{escape(ct["title"])}</strong>'
+                      f'<span class="caps latin">{escape(c["caps"])}</span></div><ul>{"".join(rows)}</ul></div>')
+    return f'''
+<section class="page index">
+  {head(t["index_head"], t["index_caps"])}
+  <div class="body">
+    <div class="icols">{"".join(groups)}</div>
+    <p class="inote">{escape(t["index_note"])}</p>
+  </div>
   {foot(t, folio)}
 </section>'''
 
 
 def page_closing(t):
     fa = t["lang"] == "fa"
-    rows = []
-    for code, name_fa, name_en, artist in PRODUCTS:
-        nm, alt = (name_fa, name_en) if fa else (name_en, artist)
-        rows.append(f'<li><span class="nm">{escape(nm)}</span><span class="alt">{escape(alt)}</span>'
-                    f'<span class="dots"></span><span class="cd">KING-500-{code}</span></li>')
     items = []
     for ic, lbl, val, kind in t["contact"]:
         cls = "item wide" if kind == "wide" else "item"
         vcls = "val latin" if kind == "latin" else "val"
         items.append(f'<div class="{cls}"><span class="ic">{icon(ic)}</span>'
                      f'<div><div class="lbl">{escape(lbl)}</div><div class="{vcls}">{val}</div></div></div>')
-    pieces_sub = f'<div class="pieces-fa">{escape(t["closing_pieces"])}</div>'
     slogan_fa = f'<p class="slogan-fa">{escape(FA["slogan_fa"])}</p>' if fa else ""
     return f'''
 <section class="page closing">
@@ -338,29 +575,85 @@ def page_closing(t):
   <div class="closing-inner">
     <img class="logo" src="assets/img/king-logo.png" alt="KING">
     <div class="brand latin">KING</div>
-    <div class="pieces caps latin">500 Pieces</div>
-    {pieces_sub}
-    <div class="list-head"><div class="row"><i></i><strong>{escape(t["list_head"])}</strong><i></i></div><div class="caps latin">{escape(t["list_caps"])}</div></div>
-    <ul class="design-list">{"".join(rows)}</ul>
+    <div class="pieces caps latin">Puzzle Collection</div>
+    <div class="pieces-fa">{escape(t["closing_line"])}</div>
+    <div class="ornament solid end"><i></i><b></b><i></i></div>
+    {slogan_fa}
+    <p class="slogan-en">Quality Never Goes Out of Style</p>
     <div class="contact">
       <span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span>
       <div class="head"><div class="row"><i></i><strong>{escape(t["contact_head"])}</strong><i></i></div><div class="caps latin">{escape(t["contact_caps"])}</div></div>
       <div class="grid">{"".join(items)}</div>
     </div>
-    <div class="ornament solid end"><i></i><b></b><i></i></div>
-    {slogan_fa}
-    <p class="slogan-en">Quality Never Goes Out of Style</p>
   </div>
 </section>'''
 
 
+def paginate(items, layout):
+    """Split a collection into pages: 3 rows per page (never a lone row), 4 cards per grid page."""
+    if layout == "grid":
+        return [items[i:i + 4] for i in range(0, len(items), 4)]
+    n = len(items)
+    if n <= 3:
+        return [items]
+    sizes = [3] * (n // 3)
+    rest = n % 3
+    if rest == 1:            # 3,1 -> 2,2
+        sizes[-1] = 2
+        sizes.append(2)
+    elif rest == 2:
+        sizes.append(2)
+    out, i = [], 0
+    for s in sizes:
+        out.append(items[i:i + s])
+        i += s
+    return out
+
+
+def plan():
+    """Return [(kind, payload)] in page order plus each collection's first page number."""
+    pages = [("cover", None), ("about", None), ("features", None)]
+    starts = {}
+    idx = 0
+    for c in COLLECTIONS:
+        items = items_of(c["key"])
+        if not items:
+            continue
+        idx += 1
+        starts[c["key"]] = len(pages) + 1
+        if c["layout"] == "feature":
+            pages.append(("feature", (idx, c, items)))
+            continue
+        pages.append(("divider", (idx, c, items)))
+        for chunk in paginate(items, c["layout"]):
+            pages.append(("products", (c, chunk)))
+    starts["index"] = len(pages) + 1
+    pages.append(("index", None))
+    pages.append(("closing", None))
+    return pages, starts
+
+
 def build(t):
-    pages = [page_cover(t), page_about(t, 2), page_features(t, 3)]
-    folio = 4
-    for i in range(0, len(PRODUCTS), 3):
-        pages.append(page_products(t, folio, PRODUCTS[i:i + 3]))
-        folio += 1
-    pages.append(page_closing(t))
+    pages, starts = plan()
+    hero = next(p for p in PRODUCTS if p["code"] == COVER_CODE)
+    html = []
+    for folio, (kind, data) in enumerate(pages, 1):
+        if kind == "cover":
+            html.append(page_cover(t, hero))
+        elif kind == "about":
+            html.append(page_about(t, folio, starts))
+        elif kind == "features":
+            html.append(page_features(t, folio))
+        elif kind == "divider":
+            html.append(page_divider(t, folio, *data))
+        elif kind == "products":
+            html.append(page_products(t, folio, *data))
+        elif kind == "feature":
+            html.append(page_feature(t, folio, *data))
+        elif kind == "index":
+            html.append(page_index(t, folio))
+        elif kind == "closing":
+            html.append(page_closing(t))
     return f'''<!doctype html>
 <html lang="{t["lang"]}" dir="{t["dir"]}">
 <head>
@@ -368,7 +661,7 @@ def build(t):
 <title>{escape(t["doc_title"])}</title>
 <link rel="stylesheet" href="assets/catalog.css">
 </head>
-<body>{"".join(pages)}
+<body>{"".join(html)}
 </body>
 </html>
 '''

@@ -1,4 +1,4 @@
-/* KING 500 Pieces — trade catalogue
+/* KING puzzle range — trade catalogue
    Shared stylesheet for the Persian (RTL) and English (LTR) editions.
    Layout uses logical properties so the same rules mirror with `dir`. */
 
@@ -173,47 +173,11 @@ html[lang="en"] .about h2 { font-family: var(--serif); font-weight: 500; font-si
 .lead { margin-top: 4mm; font-size: 10.5pt; line-height: 2.05; text-align: justify; }
 html[lang="en"] .lead { font-size: 12.5pt; line-height: 1.6; font-weight: 500; hyphens: auto; }
 
-.about .split { margin-top: 10mm; display: grid; grid-template-columns: 1fr 66mm; gap: 12mm; align-items: stretch; }
-.about h3 { margin-top: 2.5mm; font-weight: 800; font-size: 17pt; color: var(--navy); }
-html[lang="en"] .about h3 { font-family: var(--serif); font-weight: 600; font-size: 20pt; }
-.about .intro { margin-top: 3mm; font-size: 10pt; line-height: 2; text-align: justify; }
-html[lang="en"] .about .intro { font-size: 12pt; line-height: 1.55; font-weight: 500; hyphens: auto; }
-
-.specs { margin-top: 5mm; border-top: 0.3mm solid var(--gold-hair); }
-.specs div { display: flex; justify-content: space-between; align-items: baseline; padding: 2.3mm 0; border-bottom: 0.3mm solid var(--gold-hair); font-size: 9.5pt; }
-.specs dt { color: var(--muted); }
-.specs dd { color: var(--navy); font-weight: 700; }
-.specs dd.latin { font-weight: 600; font-size: 11pt; letter-spacing: 0.14em; }
-html[lang="en"] .specs div { font-size: 11pt; }
-html[lang="en"] .specs dt { font-style: italic; }
-
-.badge {
-  position: relative;
-  background: var(--ivory);
-  border: 0.3mm solid var(--gold);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center;
-}
-.badge::before { content: ""; position: absolute; inset: 2mm; border: 0.2mm solid var(--gold-line); }
-.badge .num { font-family: var(--serif); font-weight: 400; font-size: 84pt; line-height: .9; color: var(--navy); }
-.badge .caps { margin-top: 3mm; font-size: 9pt; letter-spacing: 0.45em; margin-inline-start: 0.45em; }
-.badge .ornament { margin-top: 4mm; }
-.badge .ornament i { width: 11mm; }
-.badge .sub { margin-top: 3mm; font-weight: 800; font-size: 15pt; color: var(--navy); }
-html[lang="en"] .badge .sub { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 15pt; }
-
 .section-title { margin-top: 10mm; display: flex; align-items: center; gap: 5mm; }
 .section-title strong { font-weight: 800; font-size: 13pt; color: var(--navy); white-space: nowrap; }
 html[lang="en"] .section-title strong { font-family: var(--serif); font-weight: 600; font-size: 15pt; }
 .section-title span.line { flex: 1; height: 0.3mm; background: var(--gold-hair); }
 .section-title em { font-family: var(--serif); font-style: italic; font-size: 11pt; color: var(--muted); white-space: nowrap; }
-
-.thumbs { margin-top: 6mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8mm; }
-.thumbs figure { text-align: center; }
-.thumbs .panel { height: 41mm; padding: 2.5mm; }
-.thumbs .panel::before { display: none; }
-.thumbs figcaption { margin-top: 3.5mm; font-weight: 700; font-size: 10pt; color: var(--navy); }
-html[lang="en"] .thumbs figcaption { font-family: var(--serif); font-weight: 600; font-size: 12pt; }
 
 /* ---------- Features ---------- */
 .features .head { margin-top: 10mm; text-align: center; }
@@ -289,21 +253,6 @@ html[lang="en"] .brand-mini small { font-style: italic; font-size: 9pt; }
 .closing .pieces-fa { margin-top: 1.5mm; font-weight: 700; font-size: 12pt; color: var(--navy); }
 html[lang="en"] .closing .pieces-fa { font-family: var(--serif); font-weight: 600; font-size: 14pt; letter-spacing: 0.04em; }
 
-.closing .list-head { margin-top: 5mm; display: flex; flex-direction: column; align-items: center; }
-.closing .list-head .row { display: flex; align-items: center; gap: 4mm; }
-.closing .list-head .row i { width: 22mm; height: 0.3mm; background: var(--gold); opacity: .7; }
-.closing .list-head strong { font-weight: 800; font-size: 14pt; color: var(--navy); }
-html[lang="en"] .closing .list-head strong { font-family: var(--serif); font-weight: 600; font-size: 16pt; letter-spacing: 0.02em; }
-.closing .list-head .caps { margin-top: 1mm; font-size: 7.5pt; }
-
-.design-list { margin-top: 4mm; width: 100%; list-style: none; }
-.design-list li { display: flex; align-items: baseline; gap: 2.5mm; padding: 0.8mm 0; line-height: 1.5; }
-.design-list .nm { font-weight: 700; font-size: 10.5pt; color: var(--navy); white-space: nowrap; }
-html[lang="en"] .design-list .nm { font-family: var(--serif); font-weight: 600; font-size: 12.5pt; }
-.design-list .alt { font-family: var(--serif); font-style: italic; font-size: 10.5pt; color: var(--muted); white-space: nowrap; }
-.design-list .dots { flex: 1; border-bottom: 0.25mm dotted var(--gold-line); transform: translateY(-1mm); }
-.design-list .cd { font-family: var(--serif); font-weight: 600; font-size: 9pt; letter-spacing: 0.2em; color: var(--gold); white-space: nowrap; direction: ltr; }
-
 .contact { position: relative; margin-top: 5mm; width: 100%; background: var(--ivory); border: 0.3mm solid var(--gold-line); padding: 6mm 9mm 3mm; }
 .contact::before { content: ""; position: absolute; inset: 1.8mm; border: 0.2mm solid var(--gold-hair); pointer-events: none; }
 .contact .c { position: absolute; width: 2.4mm; height: 2.4mm; background: var(--cream); border: 0.3mm solid var(--gold); transform: rotate(45deg); }
@@ -331,3 +280,106 @@ html[lang="en"] .contact .val { font-family: var(--serif); font-weight: 600; fon
 .closing .slogan-fa { margin-top: 3.5mm; font-weight: 800; font-size: 16pt; color: var(--navy); }
 .closing .slogan-en { margin-top: 1.5mm; font-family: var(--serif); font-style: italic; font-size: 13.5pt; color: var(--muted); }
 html[lang="en"] .closing .slogan-en { margin-top: 3.5mm; font-size: 18pt; font-weight: 500; color: var(--navy); }
+
+/* ---------- About: range tiles + intro ---------- */
+.about .section-title { margin-top: 9mm; }
+.tiles { margin-top: 6mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; }
+.tile {
+  position: relative; background: var(--ivory); border: 0.3mm solid var(--gold-hair);
+  padding: 5mm 3mm 4.5mm; text-align: center; min-height: 36mm;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.tile::before { content: ""; position: absolute; inset: 1.4mm; border: 0.2mm solid var(--gold-hair); pointer-events: none; }
+.tile .tnum { font-family: var(--serif); font-weight: 500; font-size: 30pt; line-height: 1; color: var(--navy); white-space: nowrap; }
+.tile .ticon { width: 10mm; height: 10mm; display: flex; align-items: center; justify-content: center; }
+.tile .ticon svg { width: 9mm; height: 9mm; stroke: var(--navy); fill: none; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.tile .tname { margin-top: 2.5mm; font-weight: 700; font-size: 10pt; color: var(--navy); }
+html[lang="en"] .tile .tname { font-family: var(--serif); font-weight: 600; font-size: 12pt; }
+.tile .tmeta { margin-top: 1mm; font-size: 8pt; color: var(--muted); }
+html[lang="en"] .tile .tmeta { font-style: italic; font-size: 9.5pt; }
+
+.intro-box { position: relative; margin-top: 9mm; background: var(--ivory); border: 0.3mm solid var(--gold-line); padding: 7mm 9mm 7mm; }
+.intro-box::before { content: ""; position: absolute; inset: 1.8mm; border: 0.2mm solid var(--gold-hair); pointer-events: none; }
+.intro-box h3 { margin-top: 2mm; font-weight: 800; font-size: 16pt; color: var(--navy); }
+html[lang="en"] .intro-box h3 { font-family: var(--serif); font-weight: 600; font-size: 20pt; }
+.intro-box .intro { margin-top: 2.5mm; font-size: 10pt; line-height: 2; text-align: justify; }
+html[lang="en"] .intro-box .intro { font-size: 12.5pt; line-height: 1.55; font-weight: 500; hyphens: auto; }
+
+/* ---------- Collection divider ---------- */
+.divider-inner {
+  position: absolute; inset: 0; padding: 18mm 24mm 22mm;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+.divider .eyebrow { font-size: 8.5pt; letter-spacing: 0.42em; margin-inline-start: 0.42em; }
+.divider .dnum { margin-top: 4mm; font-family: var(--serif); font-weight: 400; font-size: 92pt; line-height: 0.9; color: var(--navy); white-space: nowrap; }
+.divider .dcaps { margin-top: 3mm; font-size: 10pt; letter-spacing: 0.45em; margin-inline-start: 0.45em; }
+.divider .ornament { margin-top: 5mm; }
+.divider h2 { margin-top: 4mm; font-weight: 800; font-size: 23pt; line-height: 1.4; color: var(--navy); }
+html[lang="en"] .divider h2 { font-family: var(--serif); font-weight: 500; font-size: 30pt; line-height: 1.15; }
+.divider .dseries { margin-top: 1mm; font-style: italic; font-size: 14pt; color: var(--muted); }
+html[lang="en"] .divider .dseries { margin-top: 2mm; }
+.divider .ddesc { margin-top: 4mm; max-width: 140mm; font-size: 10.5pt; line-height: 2; }
+html[lang="en"] .divider .ddesc { font-size: 13pt; line-height: 1.5; font-weight: 500; }
+.divider .dfig { margin-top: 8mm; }
+.divider .dfig .panel { width: 140mm; height: 92mm; padding: 3mm; }
+.divider .dstats { margin-top: 9mm; width: 140mm; display: flex; border-top: 0.3mm solid var(--gold-line); border-bottom: 0.3mm solid var(--gold-line); }
+.divider .dstats div { flex: 1; padding: 3.5mm 2mm; display: flex; flex-direction: column; gap: 1mm; }
+.divider .dstats div + div { border-inline-start: 0.3mm solid var(--gold-hair); }
+.divider .dstats .k { font-size: 8.5pt; color: var(--muted); }
+html[lang="en"] .divider .dstats .k { font-style: italic; font-size: 10.5pt; }
+.divider .dstats .v { font-weight: 700; font-size: 11pt; color: var(--navy); }
+.divider .dstats .v.latin { font-weight: 600; font-size: 11.5pt; letter-spacing: 0.08em; }
+.dfolio { position: absolute; bottom: 12.5mm; left: 0; right: 0; text-align: center; font-weight: 600; font-size: 10pt; letter-spacing: 0.2em; color: var(--navy); }
+
+/* ---------- Product rows: extras ---------- */
+.products.n2 { grid-template-rows: repeat(2, 1fr); row-gap: 12mm; }
+.products.n2 .panel { flex-basis: 112mm; height: 84mm; }
+.products.n2 .product { gap: 10mm; }
+.product .variant, .pcard .variant { margin-top: 0.5mm; font-weight: 500; font-size: 11.5pt; color: var(--gold); }
+html[lang="en"] .product .variant, html[lang="en"] .pcard .variant { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 14pt; color: var(--navy); }
+.tags { margin-top: 2.5mm; font-weight: 600; font-size: 7.6pt; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+.product .meta { flex-wrap: wrap; row-gap: 3mm; }
+
+/* ---------- 2-in-1 grid cards ---------- */
+.pgrid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; column-gap: 12mm; row-gap: 9mm; height: 100%; }
+.pcard { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.pcard .panel { width: 100%; height: 76mm; padding: 3mm; }
+.pcard .info { margin-top: 5mm; display: flex; flex-direction: column; align-items: center; }
+.pcard .code { font-size: 8pt; letter-spacing: 0.26em; }
+.pcard h3 { margin-top: 1.5mm; font-weight: 800; font-size: 15pt; line-height: 1.35; color: var(--navy); }
+html[lang="en"] .pcard h3 { font-family: var(--serif); font-weight: 600; font-size: 18pt; line-height: 1.15; }
+.pcard .en-name { margin-top: 0.3mm; font-family: var(--serif); font-style: italic; font-size: 11pt; color: var(--navy); }
+.pcard .meta { margin-top: 3mm; display: flex; align-items: center; gap: 5mm; }
+.pcard .pcs .n { font-size: 18pt; }
+
+/* ---------- Accessories page ---------- */
+.accessory .feature-item { margin-top: 9mm; display: flex; flex-direction: column; align-items: center; }
+.accessory .feature-item .panel { width: 120mm; height: 96mm; padding: 4mm; }
+.accessory .feature-item .info { margin-top: 7mm; display: flex; flex-direction: column; align-items: center; }
+.accessory .feature-item .code { font-size: 8.5pt; letter-spacing: 0.26em; }
+.accessory .feature-item h3 { margin-top: 2mm; font-weight: 800; font-size: 20pt; color: var(--navy); }
+html[lang="en"] .accessory .feature-item h3 { font-family: var(--serif); font-weight: 600; font-size: 24pt; }
+.accessory .feature-item .en-name { margin-top: 0.5mm; font-family: var(--serif); font-style: italic; font-size: 14pt; color: var(--navy); }
+.accessory .feature-item .rule-short { margin-top: 4mm; }
+.accessory .feature-item .meta { margin-top: 4mm; display: flex; align-items: center; gap: 6mm; }
+
+/* ---------- Product index ---------- */
+.index .icols { column-count: 2; column-gap: 10mm; column-fill: auto; height: 222mm; }
+.igroup { break-inside: avoid; margin-bottom: 5.5mm; }
+.ihead { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; padding-bottom: 1.6mm; border-bottom: 0.3mm solid var(--gold-line); }
+.ihead strong { font-weight: 800; font-size: 10.5pt; color: var(--navy); }
+html[lang="en"] .ihead strong { font-family: var(--serif); font-weight: 600; font-size: 13pt; }
+.ihead .caps { font-size: 6.8pt; letter-spacing: 0.22em; white-space: nowrap; }
+.igroup ul { list-style: none; }
+.igroup li { display: flex; align-items: baseline; gap: 2mm; padding: 0.9mm 0; font-size: 8.6pt; line-height: 1.45; }
+html[lang="en"] .igroup li { font-size: 10.5pt; line-height: 1.3; }
+.igroup .cd { flex: 0 0 25mm; font-weight: 600; font-size: 8.4pt; letter-spacing: 0.08em; color: var(--gold); }
+.igroup .nm { color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.igroup .dots { flex: 1; min-width: 4mm; border-bottom: 0.25mm dotted var(--gold-line); transform: translateY(-1mm); }
+.igroup .pc { font-weight: 600; font-size: 9.5pt; color: var(--navy); white-space: nowrap; }
+.inote { position: absolute; bottom: 0; left: 0; right: 0; text-align: center; font-size: 9pt; color: var(--muted); }
+html[lang="en"] .inote { font-style: italic; font-size: 11pt; }
+
+/* ---------- Closing (range edition) ---------- */
+.closing .ornament.end { margin-top: 7mm; }
+.closing .contact { margin-top: 12mm; }
