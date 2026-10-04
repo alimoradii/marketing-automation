@@ -4,8 +4,8 @@ const path = require("path");
 const { chromium } = require("playwright");
 
 const jobs = [
-  ["catalog-fa.html", "KING-500-Catalog-FA.pdf"],
-  ["catalog-en.html", "KING-500-Catalog-EN.pdf"],
+  ["catalog-fa.html", "KING-Puzzle-Catalog-FA.pdf"],
+  ["catalog-en.html", "KING-Puzzle-Catalog-EN.pdf"],
 ];
 
 (async () => {

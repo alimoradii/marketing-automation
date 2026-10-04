@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parent
 ZW = "‌"  # zero-width non-joiner for Persian compound words
 
 PRODUCTS = json.loads((ROOT / "data" / "products.json").read_text(encoding="utf-8"))
-COVER_CODE = "KING-500-006"
+COVER_SOURCE = "59.webp"  # The Starry Night
+ABOUT_THUMBS = ["56.webp", "47.jpg", "32.jpg", "7.jpg"]  # one design from four collections
 
 FA_DIGITS = str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹")
 
@@ -46,7 +47,7 @@ def icon(name):
 # key, big numeral, Latin caps under it, layout, and copy per language.
 COLLECTIONS = [
     {
-        "key": "500", "num": "500", "caps": "Pieces", "layout": "rows", "hero": "KING-500-005",
+        "key": "500", "num": "500", "caps": "Pieces", "layout": "rows", "hero": "52.webp",
         "fa": {
             "title": "پازل ۵۰۰ قطعه", "series": "High Quality Collection", "short": "۵۰۰ قطعه",
             "desc": (f"شاهکارهای ماندگار نقاشی و طرح{ZW}های کلاسیک، با برش دقیق و چاپ با وضوح بالا؛ "
@@ -59,7 +60,7 @@ COLLECTIONS = [
         },
     },
     {
-        "key": "300", "num": "300", "caps": "Pieces", "layout": "rows", "hero": None,
+        "key": "300", "num": "300", "caps": "Pieces", "layout": "rows", "hero": "47.jpg",
         "fa": {
             "title": "پازل ۳۰۰ قطعه", "series": "Jigsaw Puzzle", "short": "۳۰۰ قطعه",
             "desc": (f"محبوب{ZW}ترین شخصیت{ZW}های کارتونی و انیمیشنی در قالب پازل ۳۰۰ قطعه؛ "
@@ -72,7 +73,7 @@ COLLECTIONS = [
         },
     },
     {
-        "key": "100", "num": "100", "caps": "Pieces", "layout": "rows", "hero": None,
+        "key": "100", "num": "100", "caps": "Pieces", "layout": "rows", "hero": "32.jpg",
         "fa": {
             "title": "پازل ۱۰۰ قطعه", "series": "Jigsaw Puzzle", "short": "۱۰۰ قطعه",
             "desc": (f"طرح{ZW}های شاد و پرطرفدار در قالب پازل ۱۰۰ قطعه؛ "
@@ -85,7 +86,7 @@ COLLECTIONS = [
         },
     },
     {
-        "key": "2in1", "num": "2 in 1", "caps": "100 + 60 Pieces", "layout": "grid", "hero": None,
+        "key": "2in1", "num": "2 in 1", "caps": "100 + 60 Pieces", "layout": "grid", "hero": "26.webp",
         "fa": {
             "title": f"دو پازل در یک جعبه", "series": "2 Fantastic Puzzles", "short": "۲ در ۱",
             "desc": (f"دو پازل ۱۰۰ و ۶۰ قطعه با دو تصویر متفاوت در یک جعبه؛ "
@@ -98,7 +99,7 @@ COLLECTIONS = [
         },
     },
     {
-        "key": "60", "num": "60", "caps": "Pieces · Big Size", "layout": "rows", "hero": None,
+        "key": "60", "num": "60", "caps": "Pieces · Big Size", "layout": "rows", "hero": "13.jpg",
         "fa": {
             "title": "پازل ۶۰ قطعه کودکانه", "series": "Big Size", "short": "۶۰ قطعه",
             "desc": (f"قطعات بزرگ و تصاویر شاد از شخصیت{ZW}های محبوب کودکان؛ "
@@ -111,7 +112,7 @@ COLLECTIONS = [
         },
     },
     {
-        "key": "40", "num": "40", "caps": "Pieces · Big Size", "layout": "rows", "hero": None,
+        "key": "40", "num": "40", "caps": "Pieces · Big Size", "layout": "rows", "hero": "7.jpg",
         "fa": {
             "title": f"پازل ۴۰ قطعه کودکانه آموزشی", "series": "Educational · Big Size", "short": "۴۰ قطعه",
             "desc": (f"پازل{ZW}های آموزشی با قطعات بزرگ برای کودکان ۴ سال به بالا؛ "
@@ -157,6 +158,8 @@ FA = {
     ),
     "range_title": f"مجموعه{ZW}های کینگ",
     "range_em": "The Range",
+    "selected": f"گزیده{ZW}ای از طرح{ZW}ها",
+    "selected_em": "Selected Designs",
     "designs_word": "طرح",
     "items_word": "محصول",
     "page_word": "صفحه",
@@ -217,6 +220,8 @@ EN = {
     ),
     "range_title": "The KING Range",
     "range_em": "at a glance",
+    "selected": "Selected Designs",
+    "selected_em": "from the range",
     "designs_word": "designs",
     "items_word": "products",
     "page_word": "page",
@@ -379,6 +384,13 @@ def page_about(t, folio, starts):
                           f'{num(t, len(items))} {word} · {t["page_word"]} {num(t, starts[c["key"]])}'))
     tiles.append(tile(f'<div class="ticon">{icon("grid")}</div>', t["index_head"],
                       f'{num(t, len(PRODUCTS))} {t["items_word"]} · {t["page_word"]} {num(t, starts["index"])}'))
+    by_src = {p["source"]: p for p in PRODUCTS}
+    short = {c["key"]: c[t["lang"]]["short"] for c in COLLECTIONS}
+    thumbs = "".join(
+        f'<figure>{panel(by_src[s])}<figcaption>'
+        f'{escape(by_src[s]["name_fa"] if t["lang"] == "fa" else by_src[s]["name_en"])}'
+        f'<small>{escape(short[by_src[s]["collection"]])}</small></figcaption></figure>'
+        for s in ABOUT_THUMBS)
     return f'''
 <section class="page about">
   {head(t["about_head"], "KING · PUZZLE COLLECTION")}
@@ -389,6 +401,8 @@ def page_about(t, folio, starts):
     <div class="section-title"><strong>{escape(t["range_title"])}</strong><span class="line"></span><em>{escape(t["range_em"])}</em></div>
     <div class="tiles">{"".join(tiles)}
     </div>
+    <div class="section-title thumbs-title"><strong>{escape(t["selected"])}</strong><span class="line"></span><em>{escape(t["selected_em"])}</em></div>
+    <div class="thumbs">{thumbs}</div>
     <div class="intro-box">
       <div class="eyebrow caps latin">KING PUZZLE</div>
       <h3>{escape(t["intro_title"])}</h3>
@@ -441,7 +455,7 @@ def stats(t, c, items):
 
 def page_divider(t, folio, idx, c, items):
     ct = c[t["lang"]]
-    hero = next((p for p in items if p["code"] == c["hero"]), None) or max(items, key=lambda p: p["hero_score"])
+    hero = next((p for p in items if p["source"] == c["hero"]), items[0])
     big = (f'<div class="dnum latin">{escape(c["num"])}</div>' if c["num"] else "")
     return f'''
 <section class="page divider">
@@ -545,8 +559,7 @@ def page_index(t, folio):
             var = p["variant_fa"] if fa else p["variant_en"]
             label = nm + (f" — {var}" if var else "")
             rows.append(f'<li><span class="cd latin">{escape(p["code"])}</span>'
-                        f'<span class="nm">{escape(label)}</span><span class="dots"></span>'
-                        f'<span class="pc latin">{escape(p["pieces"] or "—")}</span></li>')
+                        f'<span class="nm">{escape(label)}</span></li>')
         groups.append(f'<div class="igroup"><div class="ihead"><strong>{escape(ct["title"])}</strong>'
                       f'<span class="caps latin">{escape(c["caps"])}</span></div><ul>{"".join(rows)}</ul></div>')
     return f'''
@@ -635,7 +648,7 @@ def plan():
 
 def build(t):
     pages, starts = plan()
-    hero = next(p for p in PRODUCTS if p["code"] == COVER_CODE)
+    hero = next(p for p in PRODUCTS if p["source"] == COVER_SOURCE)
     html = []
     for folio, (kind, data) in enumerate(pages, 1):
         if kind == "cover":

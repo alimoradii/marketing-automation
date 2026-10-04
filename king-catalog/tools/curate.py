@@ -9,9 +9,10 @@ collection, ordered by SERIES_ORDER inside each collection, numbered
 KING-<collection>-NNN and their crops copied to assets/img/products/.
 """
 import json
-import shutil
 import sys
 from pathlib import Path
+
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 COLLECTION_ORDER = ["500", "300", "100", "2in1", "60", "40", "accessory"]
@@ -72,7 +73,8 @@ def main(intake_path, crops_dir):
         for n, p in enumerate(group, 1):
             p["code"] = f"{CODE_PREFIX[col]}-{n:03d}"
             dst = out_img / f'{p["code"].lower()}.jpg'
-            shutil.copyfile(p.pop("crop"), dst)
+            # Crop pixels are kept as they are; JPEG quality 88 keeps the PDFs small enough to send.
+            Image.open(p.pop("crop")).convert("RGB").save(dst, quality=88, optimize=True)
             p["img"] = f"assets/img/products/{dst.name}"
             result.append(p)
     (ROOT / "data").mkdir(exist_ok=True)
