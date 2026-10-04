@@ -39,7 +39,7 @@
   /* cover */
   .cover{background:linear-gradient(160deg,#0b2a3c 0%,#0d4458 55%,#0e7c86 100%);color:#fff;padding:0}
   .cover .in{position:absolute;inset:0;padding:22mm 18mm}
-  .cover .brand{font-size:11pt;letter-spacing:.5mm;opacity:.85;font-weight:500}
+  .cover .brand{font-size:11pt;letter-spacing:.5mm;opacity:.85;font-weight:400}
   .cover h1{font-size:46pt;line-height:1.25;margin-top:38mm}
   .cover h1 span{color:var(--amber)}
   .cover .sub{font-size:14pt;font-weight:300;opacity:.92;margin-top:5mm;max-width:150mm}
@@ -92,6 +92,7 @@
   .cta .row div{background:rgba(255,255,255,.1);border-radius:3mm;padding:2mm 4mm;flex:1}
   .note{font-size:8pt;color:var(--muted);margin-top:3mm}
   .ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+  .nw{direction:ltr;unicode-bidi:isolate;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -138,7 +139,7 @@
         <li>داده‌ی بخش‌ها (فروش، مالی، انبار، تولید) با هم حرف نمی‌زنند.</li>
       </ul>
     </div>
-    <div class="card" style="background:var(--mint);border-color:#bfe3e1"><div class="ico">✓</div><h3>آنچه هوش مصنوعی اضافه می‌کند</h3>
+    <div class="card" style="background:var(--mint);border-color:#bfe3e1"><div class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div><h3>آنچه هوش مصنوعی اضافه می‌کند</h3>
       <ul class="tick">
         <li>داشبورد زنده و هشدار خودکار به‌جای گزارش ماهانه.</li>
         <li>پیش‌بینی تقاضا و پیشنهاد سفارش خرید برای هر کالا و هر انبار.</li>
@@ -155,7 +156,7 @@
     <div class="stat"><div class="n">۱۵–۳۰٪</div><div class="t">کاهش موجودی راکد و سرمایه‌ی در گردش</div></div>
     <div class="stat"><div class="n">۷۰٪</div><div class="t">کاهش زمان تهیه‌ی گزارش‌های مدیریتی</div></div>
     <div class="stat"><div class="n">۲۴/۷</div><div class="t">پاسخ‌گویی هوشمند به مشتری و نماینده</div></div>
-    <div class="stat"><div class="n">+۱۰٪</div><div class="t">هدف رشد فروش از مشتریان فعلی (Cross/Up-sell)</div></div>
+    <div class="stat"><div class="n">+۱۰٪</div><div class="t">هدف رشد فروش از مشتریان فعلی (<span class="nw">Cross/Up-sell</span>)</div></div>
   </div>
   <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۲</span></div>
 </section>
@@ -226,13 +227,13 @@
 <rect x="0" y="298" width="150" height="40" rx="8" fill="#fff3e0" stroke="#f2a33a"/>
 <text x="75" y="323" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0b2a3c">اقدام خودکار در ERP</text>
 <path d="M75 352 C75 415 455 415 455 324" stroke="#f2a33a" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#ar)"/>
-<text x="265" y="432" text-anchor="middle" font-size="11" font-weight="400" fill="#5b6b78">تأیید یا رد پیشنهاد توسط کاربر ← بازخورد برای یادگیری مدل</text>
+<text x="265" y="432" text-anchor="middle" font-size="11" font-weight="400" fill="#5b6b78">بازخورد کاربر (تأیید یا رد پیشنهاد) برای یادگیری مدل</text>
 </svg>
 
   <div class="grid3" style="margin-top:4mm">
     <div class="card"><h3>بدون تعویض ERP</h3><p>اتصال از طریق API، پایگاه داده یا خروجی دوره‌ای؛ سازگار با ERPهای رایج ایرانی و خارجی.</p></div>
     <div class="card"><h3>انسان در حلقه</h3><p>هر پیشنهاد مهم قبل از اجرا توسط مسئول مربوطه تأیید می‌شود؛ کنترل همیشه دست سازمان است.</p></div>
-    <div class="card"><h3>امنیت و حریم داده</h3><p>امکان استقرار داخلی (On-Premise)، رمزنگاری، سطح دسترسی نقش‌محور و ثبت کامل لاگ.</p></div>
+    <div class="card"><h3>امنیت و حریم داده</h3><p>امکان استقرار داخلی (<span class="nw">On-Premise</span>)، رمزنگاری، سطح دسترسی نقش‌محور و ثبت کامل لاگ.</p></div>
   </div>
   <div class="foot"><span><b>کابوک</b> · برنامه‌ی هوشمندسازی</span><span>۳</span></div>
 </section>
@@ -282,7 +283,7 @@
     <div class="card"><div class="ico">۲</div><h3>بخش‌بندی هوشمند مشتری</h3>
       <p>تحلیل RFM و رفتار خرید؛ شناسایی مشتریان وفادار، در حال ریزش و پرپتانسیل؛ پیشنهاد پیام و پیشنهاد اختصاصی برای هر بخش.</p></div>
     <div class="card"><div class="ico">۳</div><h3>کمپین و سنجش اثر</h3>
-      <p>پیشنهاد کانال و بودجه‌ی بهینه؛ آزمون A/B خودکار؛ اتصال هزینه‌ی کمپین به فروش واقعی در ERP و محاسبه‌ی بازگشت سرمایه (ROI) هر کمپین.</p></div>
+      <p>پیشنهاد کانال و بودجه‌ی بهینه؛ آزمون <span class="nw">A/B</span> خودکار؛ اتصال هزینه‌ی کمپین به فروش واقعی در ERP و محاسبه‌ی بازگشت سرمایه (ROI) هر کمپین.</p></div>
     <div class="card"><div class="ico">۴</div><h3>شنود شبکه‌های اجتماعی</h3>
       <p>رصد نام کابوک و رقبا در اینستاگرام، تلگرام و سایت‌ها؛ تحلیل احساس (مثبت/منفی) نظرات؛ هشدار فوری برای بحران‌های احتمالی برند.</p></div>
     <div class="card"><div class="ico">۵</div><h3>قیمت‌گذاری و پیشنهاد محصول</h3>
@@ -357,7 +358,7 @@
   <div class="road">
     <div class="step"><div class="ph">فاز ۰<small>۲ هفته</small></div><div class="bx"><h3>ممیزی و کشف فرصت</h3><p>جلسه با مدیران هر بخش، بررسی ERP و کیفیت داده، فهرست فرصت‌ها و اولویت‌بندی بر اساس «اثر × سهولت»، تعریف KPIهای مبنا.</p></div></div>
     <div class="step"><div class="ph">فاز ۱<small>۴–۶ هفته</small></div><div class="bx"><h3>زیرساخت داده و داشبورد</h3><p>اتصال به ERP و منابع اصلی، ساخت انبار داده‌ی یکپارچه، داشبورد مدیریتی زنده و گزارش صبحگاهی خودکار.</p></div></div>
-    <div class="step"><div class="ph a">فاز ۲<small>۶–۸ هفته</small></div><div class="bx"><h3>پیروزی‌های سریع (Quick Wins)</h3><p>پیش‌بینی فروش و پیشنهاد خرید/موجودی، چت‌بات مشتری، تولید محتوای برند، دستیار دانش سازمانی.</p></div></div>
+    <div class="step"><div class="ph a">فاز ۲<small>۶–۸ هفته</small></div><div class="bx"><h3>پیروزی‌های سریع (<span class="nw">Quick Wins</span>)</h3><p>پیش‌بینی فروش و پیشنهاد خرید/موجودی، چت‌بات مشتری، تولید محتوای برند، دستیار دانش سازمانی.</p></div></div>
     <div class="step"><div class="ph a">فاز ۳<small>۲–۳ ماه</small></div><div class="bx"><h3>هوشمندسازی عمیق</h3><p>پیش‌بینی نقدینگی، قیمت‌گذاری هوشمند، بهینه‌سازی توزیع، کشف ناهنجاری مالی، کنترل کیفیت تصویری.</p></div></div>
     <div class="step"><div class="ph">فاز ۴<small>مستمر</small></div><div class="bx"><h3>عامل‌های خودکار و بهبود مستمر</h3><p>اجرای خودکار اقدامات کم‌ریسک (با قواعد تأیید)، بازآموزی مدل‌ها، آموزش کارکنان و گسترش به سایر شرکت‌های گروه سپرامین.</p></div></div>
   </div>
@@ -384,7 +385,7 @@
     <thead><tr><th style="width:38mm">حوزه</th><th>شاخص کلیدی (KPI)</th><th style="width:44mm">روش سنجش</th></tr></thead>
     <tbody>
       <tr><td>فروش</td><td>دقت پیش‌بینی فروش، نرخ ریزش مشتری، سهم فروش متقاطع</td><td>مقایسه با داده‌ی ERP</td></tr>
-      <tr><td>انبار و تأمین</td><td>روزهای موجودی، کالای راکد، دفعات کمبود (Stock-out)</td><td>گزارش ماهانه‌ی انبار</td></tr>
+      <tr><td>انبار و تأمین</td><td>روزهای موجودی، کالای راکد، دفعات کمبود (<span class="nw">Stock-out</span>)</td><td>گزارش ماهانه‌ی انبار</td></tr>
       <tr><td>بازاریابی</td><td>بازگشت سرمایه‌ی کمپین، هزینه‌ی جذب مشتری، تعامل محتوا</td><td>اتصال کمپین به فاکتور</td></tr>
       <tr><td>خدمات مشتری</td><td>زمان پاسخ، درصد پاسخ خودکار، رضایت مشتری</td><td>لاگ چت‌بات + نظرسنجی</td></tr>
       <tr><td>مالی</td><td>دوره‌ی وصول مطالبات، دقت پیش‌بینی نقدینگی</td><td>اسناد مالی</td></tr>
