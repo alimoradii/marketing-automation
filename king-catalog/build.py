@@ -16,7 +16,7 @@ PRODUCTS = [
     ("001", f"شطرنج{ZW}بازان", "The Chess Players", "After Moritz Retzsch"),
     ("002", "شام آخر", "The Last Supper", "After Leonardo da Vinci"),
     ("003", "بوسه", "The Kiss", "Gustav Klimt"),
-    ("004", "موج بزرگ کاناگاوا", "The Great Wave off Kanagawa", "Katsushika Hokusai"),
+    ("004", "موج بزرگ کاناگاوا", "The Great Wave", "Katsushika Hokusai"),
     ("005", "شب پرستاره", "The Starry Night", "Vincent van Gogh"),
     ("006", f"تاج{ZW}گذاری ناپلئون", "The Coronation of Napoleon", "Jacques-Louis David"),
     ("007", "گاراژ کلاسیک", "Classic Garage", "Vintage Illustration"),
@@ -58,6 +58,7 @@ FA = {
     "cover_title": "پازل ۵۰۰ قطعه کینگ",
     "slogan_fa": f"کیفیت هرگز از مد نمی{ZW}افتد",
     "about_head": "معرفی کینگ",
+    "about_eyebrow": "About KING",
     "about_h2": "کینگ؛ اصالت در هر قطعه",
     "about_lead": (
         f"کینگ برندی است که کیفیت را معیار اصلی کار خود می{ZW}داند. در مجموعهٔ پازل{ZW}های ۵۰۰ قطعه، "
@@ -88,7 +89,7 @@ FA = {
         ("layers", "مقوای آبی درجه یک", "Premium Blue Board",
          "استفاده از مقوای آبی درجه یک برای ایجاد کیفیت و استحکام مناسب قطعات."),
         ("puzzle", f"برش{ZW}های دقیق", "Precise Cutting",
-         f"برش دقیق قطعات برای اتصال مناسب و تجربهٔ بهتر هنگام ساخت پازل."),
+         f"برش دقیق قطعات برای اتصال مناسب و تجربه{ZW}ای بهتر هنگام ساخت پازل."),
         ("image", "وضوح تصویر بالا", "High Image Resolution",
          f"چاپ با وضوح تصویر بالا برای نمایش بهتر جزئیات و رنگ{ZW}های جذاب طرح."),
         ("grid", "تنوع بالای طرح", "Wide Variety of Designs",
@@ -116,7 +117,8 @@ EN = {
     "doc_title": "KING 500 Pieces Puzzle Catalogue",
     "foot_name": "KING 500 Pieces Puzzle",
     "about_head": "About KING",
-    "about_h2": "KING — Heritage in Every Piece",
+    "about_eyebrow": "The Brand",
+    "about_h2": "KING — Authenticity in Every Piece",
     "about_lead": (
         "KING is a brand that holds quality as its defining standard. In the 500-piece puzzle collection, "
         "timeless works of art and much-loved designs are turned into puzzles with careful craftsmanship and "
@@ -133,7 +135,7 @@ EN = {
     "specs": [
         ("Brand", "KING", True),
         ("Piece count", "500 PIECES", True),
-        ("Designs in this catalogue", f"{len(PRODUCTS)} designs", False),
+        ("Designs in this catalogue", f"{len(PRODUCTS)} DESIGNS", True),
         ("Product codes", f"KING-500-001 — {PRODUCTS[-1][0]}", True),
     ],
     "badge_sub": "in every puzzle",
@@ -156,7 +158,7 @@ EN = {
     "designs_head": "The Designs",
     "pcs_small": "per puzzle",
     "brand_small": "Brand",
-    "closing_pieces": "Puzzle Collection",
+    "closing_pieces": "500 Pieces Puzzle Collection",
     "list_head": "The Designs",
     "list_caps": "COLLECTION INDEX",
     "contact_head": "Contact Us",
@@ -225,7 +227,7 @@ def page_about(t, folio):
 <section class="page about">
   {head(t, t["about_head"], "KING · 500 PIECES")}
   <div class="body">
-    <div class="eyebrow caps latin">About KING</div>
+    <div class="eyebrow caps latin">{escape(t["about_eyebrow"])}</div>
     <h2>{escape(t["about_h2"])}</h2>
     <p class="lead">{escape(t["about_lead"])}</p>
     <div class="split">
@@ -328,7 +330,7 @@ def page_closing(t):
         vcls = "val latin" if kind == "latin" else "val"
         items.append(f'<div class="{cls}"><span class="ic">{icon(ic)}</span>'
                      f'<div><div class="lbl">{escape(lbl)}</div><div class="{vcls}">{val}</div></div></div>')
-    pieces_sub = (f'<div class="pieces-fa">{escape(t["closing_pieces"])}</div>' if fa else "")
+    pieces_sub = f'<div class="pieces-fa">{escape(t["closing_pieces"])}</div>'
     slogan_fa = f'<p class="slogan-fa">{escape(FA["slogan_fa"])}</p>' if fa else ""
     return f'''
 <section class="page closing">

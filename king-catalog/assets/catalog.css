@@ -171,13 +171,13 @@ html[lang="en"] .cover .figure { margin-top: 9mm; }
 .about h2 { margin-top: 3mm; font-weight: 800; font-size: 25pt; line-height: 1.35; color: var(--navy); }
 html[lang="en"] .about h2 { font-family: var(--serif); font-weight: 500; font-size: 30pt; line-height: 1.15; }
 .lead { margin-top: 4mm; font-size: 10.5pt; line-height: 2.05; text-align: justify; }
-html[lang="en"] .lead { font-size: 12.5pt; line-height: 1.6; font-weight: 500; }
+html[lang="en"] .lead { font-size: 12.5pt; line-height: 1.6; font-weight: 500; hyphens: auto; }
 
 .about .split { margin-top: 10mm; display: grid; grid-template-columns: 1fr 66mm; gap: 12mm; align-items: stretch; }
 .about h3 { margin-top: 2.5mm; font-weight: 800; font-size: 17pt; color: var(--navy); }
 html[lang="en"] .about h3 { font-family: var(--serif); font-weight: 600; font-size: 20pt; }
 .about .intro { margin-top: 3mm; font-size: 10pt; line-height: 2; text-align: justify; }
-html[lang="en"] .about .intro { font-size: 12pt; line-height: 1.55; font-weight: 500; }
+html[lang="en"] .about .intro { font-size: 12pt; line-height: 1.55; font-weight: 500; hyphens: auto; }
 
 .specs { margin-top: 5mm; border-top: 0.3mm solid var(--gold-hair); }
 .specs div { display: flex; justify-content: space-between; align-items: baseline; padding: 2.3mm 0; border-bottom: 0.3mm solid var(--gold-hair); font-size: 9.5pt; }
@@ -255,7 +255,7 @@ html[lang="en"] .card p { font-size: 12.5pt; line-height: 1.5; font-weight: 500;
 .product .panel { flex: 0 0 104mm; height: 74mm; padding: 3mm; }
 .product .info { flex: 1; }
 .product .code { font-size: 8.5pt; letter-spacing: 0.26em; }
-.product h3 { margin-top: 2.5mm; font-weight: 800; font-size: 21pt; line-height: 1.4; color: var(--navy); }
+.product h3 { margin-top: 2.5mm; font-weight: 800; font-size: 21pt; line-height: 1.4; color: var(--navy); text-wrap: balance; }
 html[lang="en"] .product h3 { font-family: var(--serif); font-weight: 600; font-size: 23pt; line-height: 1.15; }
 .product .en-name { margin-top: 0.5mm; font-family: var(--serif); font-style: italic; font-size: 15pt; color: var(--navy); }
 .product .artist { margin-top: 1mm; font-family: var(--serif); font-size: 10.5pt; letter-spacing: 0.06em; color: var(--muted); }
@@ -268,13 +268,16 @@ html[lang="en"] .product .fa-name { margin-top: 1.2mm; font-family: var(--fa); f
   border: 0.3mm solid var(--gold); padding: 1.6mm 4mm;
   background: rgba(255, 255, 255, 0.35);
 }
-.pcs .n { font-family: var(--serif); font-weight: 500; font-size: 22pt; line-height: 1; color: var(--navy); }
+.pcs .n { font-family: var(--serif); font-weight: 500; font-size: 25pt; line-height: 1; color: var(--navy); }
+/* keep the reference order [500 | PIECES] in the RTL edition too */
+html[dir="rtl"] .pcs { direction: ltr; }
+html[dir="rtl"] .pcs .l { text-align: left; }
 .pcs .l { display: flex; flex-direction: column; line-height: 1.25; }
-.pcs .l .caps { font-size: 7.4pt; letter-spacing: 0.26em; }
-.pcs .l small { font-size: 7.5pt; color: var(--ink); }
+.pcs .l .caps { font-size: 8pt; letter-spacing: 0.26em; }
+.pcs .l small { font-size: 8.5pt; color: var(--ink); }
 html[lang="en"] .pcs .l small { font-family: var(--serif); font-style: italic; font-size: 9pt; }
 .brand-mini { display: flex; flex-direction: column; line-height: 1.3; }
-.brand-mini small { font-size: 7.5pt; color: var(--muted); }
+.brand-mini small { font-size: 8.5pt; color: var(--ink); }
 html[lang="en"] .brand-mini small { font-style: italic; font-size: 9pt; }
 .brand-mini b { font-family: var(--serif); font-weight: 600; font-size: 12pt; letter-spacing: 0.28em; color: var(--navy); }
 
@@ -284,8 +287,9 @@ html[lang="en"] .brand-mini small { font-style: italic; font-size: 9pt; }
 .closing .brand { margin-top: 4mm; font-family: var(--serif); font-weight: 500; font-size: 34pt; line-height: 1; letter-spacing: 0.3em; margin-inline-start: 0.3em; color: var(--navy); }
 .closing .pieces { margin-top: 3.5mm; font-size: 9.5pt; letter-spacing: 0.45em; margin-inline-start: 0.45em; }
 .closing .pieces-fa { margin-top: 1.5mm; font-weight: 700; font-size: 12pt; color: var(--navy); }
+html[lang="en"] .closing .pieces-fa { font-family: var(--serif); font-weight: 600; font-size: 14pt; letter-spacing: 0.04em; }
 
-.closing .list-head { margin-top: 6mm; display: flex; flex-direction: column; align-items: center; }
+.closing .list-head { margin-top: 5mm; display: flex; flex-direction: column; align-items: center; }
 .closing .list-head .row { display: flex; align-items: center; gap: 4mm; }
 .closing .list-head .row i { width: 22mm; height: 0.3mm; background: var(--gold); opacity: .7; }
 .closing .list-head strong { font-weight: 800; font-size: 14pt; color: var(--navy); }
@@ -293,14 +297,14 @@ html[lang="en"] .closing .list-head strong { font-family: var(--serif); font-wei
 .closing .list-head .caps { margin-top: 1mm; font-size: 7.5pt; }
 
 .design-list { margin-top: 4mm; width: 100%; list-style: none; }
-.design-list li { display: flex; align-items: baseline; gap: 2.5mm; padding: 1.2mm 0; line-height: 1.5; }
+.design-list li { display: flex; align-items: baseline; gap: 2.5mm; padding: 0.8mm 0; line-height: 1.5; }
 .design-list .nm { font-weight: 700; font-size: 10.5pt; color: var(--navy); white-space: nowrap; }
 html[lang="en"] .design-list .nm { font-family: var(--serif); font-weight: 600; font-size: 12.5pt; }
 .design-list .alt { font-family: var(--serif); font-style: italic; font-size: 10.5pt; color: var(--muted); white-space: nowrap; }
 .design-list .dots { flex: 1; border-bottom: 0.25mm dotted var(--gold-line); transform: translateY(-1mm); }
 .design-list .cd { font-family: var(--serif); font-weight: 600; font-size: 9pt; letter-spacing: 0.2em; color: var(--gold); white-space: nowrap; direction: ltr; }
 
-.contact { position: relative; margin-top: 6mm; width: 100%; background: var(--ivory); border: 0.3mm solid var(--gold-line); padding: 6mm 9mm 3mm; }
+.contact { position: relative; margin-top: 5mm; width: 100%; background: var(--ivory); border: 0.3mm solid var(--gold-line); padding: 6mm 9mm 3mm; }
 .contact::before { content: ""; position: absolute; inset: 1.8mm; border: 0.2mm solid var(--gold-hair); pointer-events: none; }
 .contact .c { position: absolute; width: 2.4mm; height: 2.4mm; background: var(--cream); border: 0.3mm solid var(--gold); transform: rotate(45deg); }
 .contact .c.tl { top: -1.4mm; left: -1.4mm; } .contact .c.tr { top: -1.4mm; right: -1.4mm; }
