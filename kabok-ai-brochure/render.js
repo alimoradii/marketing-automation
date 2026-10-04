@@ -53,11 +53,12 @@ function buildFontCss() {
   const p = await b.newPage();
   await p.goto('file://' + __dirname + '/brochure.html', { waitUntil: 'networkidle' });
   await p.evaluate(() => document.fonts.ready);
-  if (weights.length) {
-    const loaded = await p.evaluate(() => [...document.fonts].filter(f => f.family.replace(/"/g, '') === 'IRANSans' && f.status === 'loaded').map(f => f.weight));
-    if (!loaded.length) { console.error('IRANSans files were found but none loaded in the page.'); await b.close(); process.exit(1); }
-    console.log(`Loaded in page: ${loaded.join(', ')}`);
-  }
+  // Fail instead of silently falling back to a system font.
+  const family = weights.length ? 'IRANSans' : 'Vazirmatn';
+  await p.evaluate(fam => Promise.all([...document.fonts].filter(f => f.family.replace(/"/g, '') === fam).map(f => f.load().catch(() => {}))), family);
+  const loaded = await p.evaluate(fam => [...document.fonts].filter(f => f.family.replace(/"/g, '') === fam && f.status === 'loaded').map(f => f.weight), family);
+  if (!loaded.length) { console.error(`${family} did not load in the page; check the font paths.`); await b.close(); process.exit(1); }
+  console.log(`${family} loaded: ${[...new Set(loaded)].join(', ')}`);
   await p.pdf({ path: __dirname + '/Kabok-AI-Brochure.pdf', format: 'A4', printBackground: true, preferCSSPageSize: true });
   await b.close();
 })();
