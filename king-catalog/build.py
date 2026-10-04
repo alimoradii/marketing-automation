@@ -350,7 +350,7 @@ def page_cover(t, hero):
   <div class="cover-inner">
     <img class="logo" src="assets/img/king-logo.png" alt="KING">
     <h1 class="brand latin">KING</h1>
-    <div class="collection caps latin">Puzzle Collection · Product Catalogue</div>
+    <div class="collection caps latin">{escape(t.get("cover_caps", "Puzzle Collection · Product Catalogue"))}</div>
     {ORN}
     {title}
     <figure class="figure">{panel(hero)}</figure>
@@ -427,7 +427,7 @@ def page_features(t, folio):
       </article>''')
     return f'''
 <section class="page features">
-  {head(t["features_head"], "KING · PUZZLE COLLECTION")}
+  {head(t["features_head"], t.get("head_caps", "KING · PUZZLE COLLECTION"))}
   <div class="body">
     <div class="head">
       <div class="eyebrow caps latin">{escape(t["features_eyebrow"])}</div>

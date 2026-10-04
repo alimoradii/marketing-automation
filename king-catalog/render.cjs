@@ -1,4 +1,4 @@
-// Render catalog-fa.html / catalog-en.html to A4 PDFs with headless Chromium.
+// Render the range (catalog-*.html) and 500-piece (catalog500-*.html) catalogues to A4 PDFs with headless Chromium.
 // Usage: NODE_PATH="$(npm root -g)" node render.cjs
 const path = require("path");
 const { chromium } = require("playwright");
@@ -6,6 +6,8 @@ const { chromium } = require("playwright");
 const jobs = [
   ["catalog-fa.html", "KING-Puzzle-Catalog-FA.pdf"],
   ["catalog-en.html", "KING-Puzzle-Catalog-EN.pdf"],
+  ["catalog500-fa.html", "KING-500-Catalog-FA.pdf"],
+  ["catalog500-en.html", "KING-500-Catalog-EN.pdf"],
 ];
 
 (async () => {

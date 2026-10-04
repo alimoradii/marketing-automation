@@ -395,3 +395,51 @@ html[lang="en"] .inote { font-style: italic; font-size: 11pt; }
 .thumbs figcaption small { display: block; font-weight: 500; font-size: 7.6pt; color: var(--gold); }
 html[lang="en"] .thumbs figcaption { font-family: var(--serif); font-weight: 600; font-size: 11pt; line-height: 1.2; }
 html[lang="en"] .thumbs figcaption small { font-style: italic; font-weight: 500; font-size: 9.5pt; }
+
+/* ---------- 500-piece edition: About (500 badge + specs) ---------- */
+.about500 .split { margin-top: 9mm; display: grid; grid-template-columns: 1fr 66mm; gap: 12mm; align-items: stretch; }
+.about500 h3 { margin-top: 2.5mm; font-weight: 800; font-size: 17pt; color: var(--navy); }
+html[lang="en"] .about500 h3 { font-family: var(--serif); font-weight: 600; font-size: 20pt; }
+.about500 .intro { margin-top: 3mm; font-size: 10pt; line-height: 2; text-align: justify; }
+html[lang="en"] .about500 .intro { font-size: 12pt; line-height: 1.55; font-weight: 500; hyphens: auto; }
+.specs { margin-top: 5mm; border-top: 0.3mm solid var(--gold-hair); }
+.specs div { display: flex; justify-content: space-between; align-items: baseline; padding: 2.3mm 0; border-bottom: 0.3mm solid var(--gold-hair); font-size: 9.5pt; }
+.specs dt { color: var(--muted); }
+.specs dd { color: var(--navy); font-weight: 700; }
+.specs dd.latin { font-weight: 600; font-size: 11pt; letter-spacing: 0.14em; }
+html[lang="en"] .specs div { font-size: 11pt; }
+html[lang="en"] .specs dt { font-style: italic; }
+.badge {
+  position: relative; background: var(--ivory); border: 0.3mm solid var(--gold);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+}
+.badge::before { content: ""; position: absolute; inset: 2mm; border: 0.2mm solid var(--gold-line); }
+.badge .num { font-family: var(--serif); font-weight: 400; font-size: 84pt; line-height: .9; color: var(--navy); }
+.badge .caps { margin-top: 3mm; font-size: 9pt; letter-spacing: 0.45em; margin-inline-start: 0.45em; }
+.badge .ornament { margin-top: 4mm; }
+.badge .ornament i { width: 11mm; }
+.badge .sub { margin-top: 3mm; font-weight: 800; font-size: 15pt; color: var(--navy); }
+html[lang="en"] .badge .sub { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 15pt; }
+.about500 .section-title { margin-top: 9mm; }
+.about500 .thumbs { margin-top: 6mm; grid-template-columns: repeat(3, 1fr); gap: 8mm; }
+.about500 .thumbs .panel { height: 41mm; padding: 2.5mm; }
+.about500 .thumbs figcaption { margin-top: 3.5mm; font-size: 10pt; }
+html[lang="en"] .about500 .thumbs figcaption { font-size: 12pt; }
+
+/* ---------- 500-piece edition: closing page with design list ---------- */
+.closing500 .list-head { margin-top: 5mm; display: flex; flex-direction: column; align-items: center; }
+.closing500 .list-head .row { display: flex; align-items: center; gap: 4mm; }
+.closing500 .list-head .row i { width: 22mm; height: 0.3mm; background: var(--gold); opacity: .7; }
+.closing500 .list-head strong { font-weight: 800; font-size: 14pt; color: var(--navy); }
+html[lang="en"] .closing500 .list-head strong { font-family: var(--serif); font-weight: 600; font-size: 16pt; letter-spacing: 0.02em; }
+.closing500 .list-head .caps { margin-top: 1mm; font-size: 7.5pt; }
+.design-list { margin-top: 4mm; width: 100%; list-style: none; }
+.design-list li { display: flex; align-items: baseline; gap: 2.5mm; padding: 0.7mm 0; line-height: 1.5; }
+.design-list .nm { font-weight: 700; font-size: 10.5pt; color: var(--navy); white-space: nowrap; }
+html[lang="en"] .design-list .nm { font-family: var(--serif); font-weight: 600; font-size: 12.5pt; }
+.design-list .alt { font-family: var(--serif); font-style: italic; font-size: 10.5pt; color: var(--muted); white-space: nowrap; }
+.design-list .dots { flex: 1; border-bottom: 0.25mm dotted var(--gold-line); transform: translateY(-1mm); }
+.design-list .cd { font-family: var(--serif); font-weight: 600; font-size: 9pt; letter-spacing: 0.2em; color: var(--gold); white-space: nowrap; direction: ltr; }
+.closing500 .contact { margin-top: 5mm; }
+.closing500 .ornament.end { margin-top: 6mm; }
+html[lang="fa"] .closing500 .design-list li { padding: 0.45mm 0; }
