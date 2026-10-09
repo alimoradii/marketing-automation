@@ -1474,11 +1474,11 @@ if trades.size() > 0
                 if tr.market
                     tr.entry := open
                 tr.risk := math.abs(tr.entry - tr.stop)
-                if tr.risk <= 0
-                    tr.state := 2
-                else if tr.sell ? tr.entry >= tr.stop : tr.entry <= tr.stop  // market fill would open beyond the stop
+                if tr.sell ? tr.entry >= tr.stop : tr.entry <= tr.stop  // market fill would open at / beyond the stop
                     tr.state := 2
                     f_update(tr, "void", tr.entry, na)
+                else if tr.risk <= 0
+                    tr.state := 2
                 else
                     tr.state := 1
                     f_update(tr, "filled", tr.entry, na)
@@ -1638,6 +1638,26 @@ f_disp5(bool buy, int fromI) =>
                 d := true
                 break
     d
+
+// end of the displacement leg that starts at an LTF extreme: its later LTF candles in that chart bar (not the part of the bar
+// before the extreme), then the chart bars after it; ties go to the earlier bar like the chart loops
+f_farFrom5(Ltf t, bool buy, int xB) =>
+    float far = t.xp
+    int farB = xB
+    int s = x5h.size()
+    int p0 = f_p5(t.xi)
+    if p0 >= 0 and p0 < s
+        for p = p0 to s - 1
+            if x5b.get(p) != xB
+                break
+            if buy ? x5h.get(p) > far : x5l.get(p) < far
+                far := buy ? x5h.get(p) : x5l.get(p)
+    if bar_index > xB
+        for k = 0 to bar_index - xB - 1
+            if buy ? high[k] >= far : low[k] <= far
+                far := buy ? high[k] : low[k]
+                farB := bar_index - k
+    [far, farB]
 
 f_3pd(Leg lg) =>
     bool bear = lg.bear
@@ -1961,6 +1981,10 @@ f_stepLeg(Leg lg) =>
             if bear ? high[k] >= far : low[k] <= far
                 far := bear ? high[k] : low[k]
                 farBar := bar_index - k
+        if lg.z5.mss
+            [f5, f5B] = f_farFrom5(lg.z5, bear, f_bar5(lg.z5.xi, lg.extremeBar))
+            far := f5
+            farBar := f5B
         int dispEnd = iFvgDisp ? farBar : bar_index
         // dealing range: BSL = the hunt of the SDP (fib 1), SSL = the zone extreme (mirror for a sell); wider if price went past fib 1
         int oneB = lg.fs ? lg.parentBar : lg.oneBar
@@ -2206,13 +2230,10 @@ f_stepCont(Leg lg) =>
         // displacement leg: from the hunt (15m) or from the LTF extreme, which can be a later wick past fib 1
         float farD = farC
         int farDBar = farCBar
-        if ltf and hlB > lg.oneBar
-            farD := buy ? high : low
-            farDBar := bar_index
-            for k = 0 to bar_index - hlB
-                if buy ? high[k] >= farD : low[k] <= farD
-                    farD := buy ? high[k] : low[k]
-                    farDBar := bar_index - k
+        if ltf
+            [f5, f5B] = f_farFrom5(lg.c5, buy, hlB)
+            farD := f5
+            farDBar := f5B
         float eq = (hl + (ltf ? farD : lg.cFar)) / 2
         int dispEndC = iFvgDisp ? farDBar : bar_index
         // dealing range: SSL = the hunt (buy), BSL = the last opposite stop hunt beyond it, else fib 0; wider if price went past it
@@ -2518,4 +2539,4 @@ if iShowDash and barstate.islast
     else
         f_row(10, "Size", "— (no open signal)", color.gray)
 
-// ===== END OF SCRIPT: line 2521 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2542 — if your editor stops before this line, the copy was cut off =====
