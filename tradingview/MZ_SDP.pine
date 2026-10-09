@@ -227,6 +227,17 @@ type Hunt
     int    parent = -1
     int    zeroBar = -1
 
+// lower-timeframe follow-up of one setup: extreme candle, stop hunt, MSS of the LTF swing before the extreme
+type Ltf
+    int   xi = -1     // running index of the LTF extreme candle (-1 = not started)
+    float xp
+    int   xt = 0      // its open time
+    int   last = -1   // last LTF candle walked
+    bool  hunt = false
+    bool  mss = false // the setup's MSS came from this lower timeframe
+    float zero        // LTF swing it broke = fib 0 of the LTF entry leg
+    int   zeroBar = -1
+
 type Leg
     bool         bear
     float        one
@@ -270,13 +281,8 @@ type Leg
     bool         sbMss = false
     bool         sbDone = false
     float        sbLvl
-    int          x5i = -1        // lower timeframe at the zone: running index of the extreme candle
-    float        x5p
-    int          x5time = 0
-    bool         h5 = false      // the LTF extreme took an LTF swing (stop hunt)
-    bool         m5 = false      // the MSS came from the lower timeframe
-    float        m5Zero          // LTF swing it broke = fib 0 of the LTF entry leg
-    int          m5ZeroBar = -1
+    Ltf          z5              // lower timeframe at the -2 / -3.5 zone
+    Ltf          c5              // lower timeframe on the stop-hunt leg (hunt setup)
     bool         oppDone = false // dealing range of the hunt setup: last opposite stop hunt beyond it
     float        oppPx
     int          oppBar = -1
@@ -721,8 +727,10 @@ var array<int>   i5hI = array.new<int>()
 var array<float> i5hP = array.new<float>()
 var array<int>   i5lI = array.new<int>()
 var array<float> i5lP = array.new<float>()
-int k5new = 0  // LTF candles added on this chart bar
 f_p5(int gi) => gi - (n5 - x5h.size())
+f_bar5(int gi, int fb) =>
+    int pos = f_p5(gi)
+    pos >= 0 and pos < x5b.size() ? x5b.get(pos) : fb
 f_on5Swing(int gi, float p, bool isHigh) =>
     array<int> sb = isHigh ? s5hI : s5lI
     array<float> sp = isHigh ? s5hP : s5lP
@@ -760,7 +768,6 @@ if LTF_DATA and lH.size() > 0
             x5t.push(lT.get(j))
             x5b.push(bar_index)
             n5 += 1
-            k5new += 1
             if x5h.size() > 1000
                 x5h.shift()
                 x5l.shift()
@@ -1165,7 +1172,7 @@ if hunts.size() > 0
             for x in book
                 if x.oneBar == hu.bar
                     dup := true
-            Leg lg = Leg.new(hu.bear, hu.one, hu.zero, hu.bar, bar_index, hu.names, drOne = hu.one, zeroBar = hu.zeroBar, lns = array.new<line>(), lbs = array.new<label>(), bxs = array.new<box>())
+            Leg lg = Leg.new(hu.bear, hu.one, hu.zero, hu.bar, bar_index, hu.names, drOne = hu.one, zeroBar = hu.zeroBar, z5 = Ltf.new(), c5 = Ltf.new(), lns = array.new<line>(), lbs = array.new<label>(), bxs = array.new<box>())
             bool took = false
             if not dup
                 lg.inZone := f_inPriorZone(hu.bear, hu.one, hu.bar)
@@ -1225,7 +1232,7 @@ if fsq.size() > 0
             if x.oneBar == hu.parent and not x.fs and not x.done
                 pOne := x.one
         if not na(pOne)
-            Leg lg = Leg.new(hu.bear, hu.one, hu.zero, hu.bar, bar_index, hu.names, cDone = true, fs = true, parentBar = hu.parent, drOne = pOne, zeroBar = hu.zeroBar, lns = array.new<line>(), lbs = array.new<label>(), bxs = array.new<box>())
+            Leg lg = Leg.new(hu.bear, hu.one, hu.zero, hu.bar, bar_index, hu.names, cDone = true, fs = true, parentBar = hu.parent, drOne = pOne, zeroBar = hu.zeroBar, z5 = Ltf.new(), c5 = Ltf.new(), lns = array.new<line>(), lbs = array.new<label>(), bxs = array.new<box>())
             if not iClean
                 f_drawLeg(lg)
             book.push(lg)
@@ -1546,8 +1553,7 @@ f_touch(Leg lg, string z, float ext) =>
     lg.mssBar := -1
     lg.mssLevel := na
     lg.ithBar := -1
-    lg.x5i := -1
-    lg.m5 := false
+    lg.z5 := Ltf.new()
     z
 
 f_resetSetup(Leg lg) =>
@@ -1558,52 +1564,60 @@ f_resetSetup(Leg lg) =>
     lg.mssBar := -1
     lg.mssLevel := na
     lg.ithBar := -1
-    lg.x5i := -1
-    lg.m5 := false
+    lg.z5 := Ltf.new()
     lg.zone
 
-// price is in the zone: walk this bar's lower-timeframe candles in order. A new extreme must take an LTF swing (stop hunt);
-// a later candle beyond the LTF swing before the extreme is the MSS (short-term swing or ITH/ITL, like "MSS must break")
-f_track5(Leg lg) =>
+// walk the lower-timeframe candles not seen yet, in order (the first time: from chart bar fromBar on). A new extreme resets
+// the MSS and, when needHunt, must take an LTF swing (stop hunt); a later candle beyond the LTF swing before the extreme is
+// the MSS (short-term swing or ITH/ITL, like "MSS must break"). True when this walk ends with an MSS after the last extreme.
+f_track5(Ltf t, bool buy, int fromBar, bool needHunt, int fbBar) =>
     bool hit = false
     int s = x5h.size()
-    if LTF_MSS and k5new > 0 and s >= k5new
-        bool buy = lg.bear
+    if LTF_MSS and s > 0
+        int base = n5 - s
+        int p0 = t.last + 1 - base
+        if t.xi < 0
+            p0 := s
+            while p0 > 0 and x5b.get(p0 - 1) >= fromBar
+                p0 -= 1
+        p0 := math.max(0, p0)
         int win = iIthLB * LTF_N
         array<int> hb = buy ? s5lI : s5hI
         array<float> hp = buy ? s5lP : s5hP
         array<int> pb = MSS_SHORT ? (buy ? s5hI : s5lI) : (buy ? i5hI : i5lI)
         array<float> pp = MSS_SHORT ? (buy ? s5hP : s5lP) : (buy ? i5hP : i5lP)
-        for p = s - k5new to s - 1
-            int gi = n5 - s + p
-            float h = x5h.get(p)
-            float l = x5l.get(p)
-            if lg.x5i < 0 or (buy ? l < lg.x5p : h > lg.x5p)
-                lg.x5i := gi
-                lg.x5p := buy ? l : h
-                lg.x5time := x5t.get(p)
-                lg.h5 := false
-                hit := false
-                int nh = hb.size()
-                if nh > 0
-                    for k = nh - 1 to 0
-                        int b = hb.get(k)
-                        if b < gi
-                            lg.h5 := b >= gi - win and (buy ? hp.get(k) > l : hp.get(k) < h)
-                            break
-            else if lg.h5 and not hit
-                int n = pb.size()
-                if n > 0
-                    for k = n - 1 to 0
-                        int b = pb.get(k)
-                        if b < lg.x5i
-                            float pk = pp.get(k)
-                            if b >= lg.x5i - win and (buy ? h > pk : l < pk)
-                                hit := true
-                                int pos = f_p5(b)
-                                lg.m5Zero := pk
-                                lg.m5ZeroBar := pos >= 0 ? x5b.get(pos) : lg.extremeBar
-                            break
+        if p0 <= s - 1
+            for p = p0 to s - 1
+                int gi = base + p
+                float h = x5h.get(p)
+                float l = x5l.get(p)
+                if t.xi < 0 or (buy ? l < t.xp : h > t.xp)
+                    t.xi := gi
+                    t.xp := buy ? l : h
+                    t.xt := x5t.get(p)
+                    t.hunt := not needHunt
+                    hit := false
+                    int nh = hb.size()
+                    if needHunt and nh > 0
+                        for k = nh - 1 to 0
+                            int b = hb.get(k)
+                            if b < gi
+                                t.hunt := b >= gi - win and (buy ? hp.get(k) > l : hp.get(k) < h)
+                                break
+                else if t.hunt and not hit
+                    int n = pb.size()
+                    if n > 0
+                        for k = n - 1 to 0
+                            int b = pb.get(k)
+                            if b < t.xi
+                                float pk = pp.get(k)
+                                if b >= t.xi - win and (buy ? h > pk : l < pk)
+                                    hit := true
+                                    int pos = f_p5(b)
+                                    t.zero := pk
+                                    t.zeroBar := pos >= 0 ? x5b.get(pos) : fbBar
+                                break
+        t.last := n5 - 1
     hit
 
 // displacement on the lower timeframe: a candle from the LTF extreme on with body >= 50% of its range and range >= ATR x
@@ -1716,8 +1730,8 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
     else if iUseMinStop and risk < iMinStop * PIP
         rej := "stop too tight (" + str.tostring(risk / PIP, "0.0") + " pips)"
     // entry leg: zone extreme (fib 1) to the swing before it (fib 0) - on the lower timeframe when the MSS came from there
-    float tz = lg.m5 ? lg.m5Zero : f_lastBefore(buy ? shB : slB, buy ? shP : slP, lg.extremeBar)
-    int tzB = lg.m5 ? lg.m5ZeroBar : f_lastBarBefore(buy ? shB : slB, lg.extremeBar)
+    float tz = lg.z5.mss ? lg.z5.zero : f_lastBefore(buy ? shB : slB, buy ? shP : slP, lg.extremeBar)
+    int tzB = lg.z5.mss ? lg.z5.zeroBar : f_lastBarBefore(buy ? shB : slB, lg.extremeBar)
     if rej == "" and na(tz)
         rej := "no swing for the entry leg"
     float unit = na(tz) ? na : buy ? tz - lg.extreme : lg.extreme - tz
@@ -1797,7 +1811,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
             usedStops.shift()
         st.liveLeg := lg.oneBar
         string zoneTxt = lg.zone == "Z2" ? "-" + str.tostring(iZ2a) + "/-" + str.tostring(iZ2b) : "-" + str.tostring(iZ3a) + "/-" + str.tostring(iZ3b)
-        string ltfTxt = lg.m5 ? " · stop hunt + MSS " + iLtfTf + "m" : ""
+        string ltfTxt = lg.z5.mss ? " · stop hunt + MSS " + iLtfTf + "m" : ""
         if iShowTrade
             color col = buy ? cBuy : cSell
             int x2 = bar_index + iLineBars
@@ -1805,10 +1819,10 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
             f_drawFvg(g, buy)
             if not na(tz)
-                f_sigSdp(lg.extreme, tz, lg.extremeBar, tzB, DRAW, col, lg.m5 ? "entry leg " + iLtfTf + "m" : "entry leg")
+                f_sigSdp(lg.extreme, tz, lg.extremeBar, tzB, DRAW, col, lg.z5.mss ? "entry leg " + iLtfTf + "m" : "entry leg")
             string txt = (buy ? "BUY " : "SELL ") + grade + " (" + str.tostring(score) + "/" + str.tostring(maxScore) + ")\nZone " + zoneTxt + (lg.fs ? " (Failure Swing)" : "") + ltfTxt + "\nEntry " + f_num(entry) + "\nSL " + f_num(stop) + "\nTP " + f_num(main) + tpWhy + "\nR:R 1:" + str.tostring(rr, "0.0") + "\nDealing range " + f_num(drLo) + " - " + f_num(drHi) + " · 50% " + f_num(drEq) + "\nDaily bias: " + f_dBiasTxt(buy) + "\n" + f_htfTxt(buy, entry) + "\n" + f_dFvgTxt(buy)
             float aB = na(atr14) ? 0.0 : atr14
-            string shortTxt = (buy ? "BUY " : "SELL ") + grade + (lg.fs ? " · Failure Swing" : "") + (lg.m5 ? " · " + iLtfTf + "m" : "") + " · R:R 1:" + str.tostring(rr, "0.0") + "\nEntry " + f_num(entry) + (market ? " (mkt)" : "") + "\nSL " + f_num(stop) + "  TP " + f_num(main)
+            string shortTxt = (buy ? "BUY " : "SELL ") + grade + (lg.fs ? " · Failure Swing" : "") + (lg.z5.mss ? " · " + iLtfTf + "m" : "") + " · R:R 1:" + str.tostring(rr, "0.0") + "\nEntry " + f_num(entry) + (market ? " (mkt)" : "") + "\nSL " + f_num(stop) + "  TP " + f_num(main)
             txt := (trNew.warn == "" ? "" : trNew.warn + "\n") + txt
             shortTxt := (trNew.warn == "" ? "" : "⚠ REDUCE SIZE\n") + shortTxt
             trNew.tip := txt
@@ -1817,7 +1831,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
                 trNew.lab := lb
             else
                 trNew.mini := true
-                trNew.kind := (lg.fs ? "FS" : lg.zone == "Z2" ? "zone -2" : "zone -3.5") + (lg.m5 ? " " + iLtfTf + "m" : "")
+                trNew.kind := (lg.fs ? "FS" : lg.zone == "Z2" ? "zone -2" : "zone -3.5") + (lg.z5.mss ? " " + iLtfTf + "m" : "")
                 trNew.lab := label.new(bar_index, buy ? low - 0.3 * aB : high + 0.3 * aB, (buy ? "▲ " : "▼ ") + (trNew.warn == "" ? "" : "⚠") + trNew.kind, style = buy ? label.style_label_up : label.style_label_down, color = color.new(color.black, 100), textcolor = color.new(col, 10), size = sSig, tooltip = txt)
         if f_gradeRank(grade) >= f_gradeRank(iMinGrade) and not ALJSON and not iOnRetrace
             alert(f_sigTxt(buy, grade, "reversal at the " + zoneTxt + " zone" + (lg.fs ? " (failure swing)" : "") + ltfTxt, entry, market, stop, partial, main, rr, validBars) + (trNew.warn == "" ? "" : "\n" + trNew.warn), alert.freq_once_per_bar_close)
@@ -1831,7 +1845,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
             float t25 = buy ? tz + 2.5 * unit : tz - 2.5 * unit
             string tg = "[{\"sd\":-1,\"price\":" + f_num(t1) + "},{\"sd\":-1.5,\"price\":" + f_num(t15) + "},{\"sd\":-2,\"price\":" + f_num(t2) + "},{\"sd\":-2.5,\"price\":" + f_num(t25) + "}]"
             string cf = "{\"daily_bias\":" + f_q(f_dBiasTxt(buy)) + ",\"htf_ranges\":" + f_q(f_htfTxt(buy, entry)) + ",\"daily_fvg\":" + f_q(f_dFvgTxt(buy)) + ",\"3pd_failed\":" + str.tostring(nPD) + ",\"3pd\":" + f_b(pd3) + ",\"htf\":" + f_b(htfOk) + ",\"smt\":" + f_b(smtOk) + ",\"turtle_soup\":" + f_b(lg.tsoup) + (iUseSB ? ",\"silver_bullet\":" + f_b(inSB) : "") + (eqLeft != "" ? ",\"unfinished_eq\":" + f_q(eqLeft) : "") + (warn != "" ? ",\"warnings\":[" + f_q(warn) + "]" : "") + "}"
-            string js = "{\"passphrase\":" + f_q(iPass) + ",\"type\":\"signal\",\"id\":" + f_q(id) + ",\"symbol\":" + f_q(TK) + ",\"exchange\":" + f_q(syminfo.prefix) + ",\"timeframe\":" + f_q(timeframe.period) + ",\"side\":" + f_q(side) + ",\"time\":" + f_q(str.format_time(time_close, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC")) + ",\"killzone\":" + f_q(win) + ",\"entry\":" + f_num(entry) + ",\"stop\":" + f_num(stop) + ",\"entry_type\":" + f_q(market ? "market" : "limit") + ",\"targets\":" + tg + ",\"main_target\":" + f_num(main) + ",\"partial_target\":" + f_num(partial) + ",\"rr\":" + str.tostring(rr, "0.00") + ",\"zone\":" + f_q(zoneTxt) + ",\"sdp_one\":" + f_num(lg.one) + ",\"sdp_zero\":" + f_num(lg.zero) + ",\"leg_one\":" + f_num(lg.extreme) + ",\"leg_zero\":" + f_num(tz) + ",\"mss_level\":" + f_num(lg.mssLevel) + ",\"fvg_top\":" + f_num(g.top) + ",\"fvg_bottom\":" + f_num(g.bottom) + ",\"swept\":[" + names + "],\"setup\":" + f_q(lg.fs ? "failure_swing" : "reversal") + ",\"mss_tf\":" + f_q(lg.m5 ? iLtfTf : timeframe.period) + ",\"midnight_open\":" + f_num(midOpen) + ",\"dr_high\":" + f_num(drHi) + ",\"dr_low\":" + f_num(drLo) + ",\"dr_eq\":" + f_num(drEq) + ",\"confirmations\":" + cf + ",\"score\":" + str.tostring(score) + ",\"max_score\":" + str.tostring(maxScore) + ",\"grade\":" + f_q(grade) + "}"
+            string js = "{\"passphrase\":" + f_q(iPass) + ",\"type\":\"signal\",\"id\":" + f_q(id) + ",\"symbol\":" + f_q(TK) + ",\"exchange\":" + f_q(syminfo.prefix) + ",\"timeframe\":" + f_q(timeframe.period) + ",\"side\":" + f_q(side) + ",\"time\":" + f_q(str.format_time(time_close, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC")) + ",\"killzone\":" + f_q(win) + ",\"entry\":" + f_num(entry) + ",\"stop\":" + f_num(stop) + ",\"entry_type\":" + f_q(market ? "market" : "limit") + ",\"targets\":" + tg + ",\"main_target\":" + f_num(main) + ",\"partial_target\":" + f_num(partial) + ",\"rr\":" + str.tostring(rr, "0.00") + ",\"zone\":" + f_q(zoneTxt) + ",\"sdp_one\":" + f_num(lg.one) + ",\"sdp_zero\":" + f_num(lg.zero) + ",\"leg_one\":" + f_num(lg.extreme) + ",\"leg_zero\":" + f_num(tz) + ",\"mss_level\":" + f_num(lg.mssLevel) + ",\"fvg_top\":" + f_num(g.top) + ",\"fvg_bottom\":" + f_num(g.bottom) + ",\"swept\":[" + names + "],\"setup\":" + f_q(lg.fs ? "failure_swing" : "reversal") + ",\"mss_tf\":" + f_q(lg.z5.mss ? iLtfTf : timeframe.period) + ",\"midnight_open\":" + f_num(midOpen) + ",\"dr_high\":" + f_num(drHi) + ",\"dr_low\":" + f_num(drLo) + ",\"dr_eq\":" + f_num(drEq) + ",\"confirmations\":" + cf + ",\"score\":" + str.tostring(score) + ",\"max_score\":" + str.tostring(maxScore) + ",\"grade\":" + f_q(grade) + "}"
             alert(js, alert.freq_once_per_bar_close)
     emitted
 
@@ -1877,7 +1891,7 @@ f_stepLeg(Leg lg) =>
         lg.mssBar := -1
         lg.mssLevel := na
         lg.ithBar := -1
-        lg.m5 := false
+        lg.z5.mss := false
     if go and lg.extremeBar == bar_index
         for sw in sweptNow
             if sw.bsl != bear
@@ -1885,7 +1899,7 @@ f_stepLeg(Leg lg) =>
     if go and lg.mssBar < 0
         bool m5 = false
         if LTF_MSS
-            m5 := f_track5(lg)
+            m5 := f_track5(lg.z5, bear, lg.touchBar, true, lg.extremeBar)
         int bI = -1
         float pI = na
         bool m15 = false
@@ -1903,13 +1917,13 @@ f_stepLeg(Leg lg) =>
                         break
             m15 := bI >= 0 and (bear ? high > pI : low < pI)
         if not m15 and m5  // the chart timeframe first; the lower one only when it shows no MSS (notes: 15m main, 5m when 15m has no clear leg)
-            bI := lg.m5ZeroBar
-            pI := lg.m5Zero
+            bI := lg.z5.zeroBar
+            pI := lg.z5.zero
         if m15 or m5
             lg.mssBar := bar_index
             lg.mssLevel := pI
             lg.ithBar := bI
-            lg.m5 := not m15
+            lg.z5.mss := not m15
             float drMid = (lg.extreme + lg.drOne) / 2
             if useDR and (bear ? pI > drMid : pI < drMid)
                 f_reject(lg, bear ? "MSS in premium of dealing range (turtle soup)" : "MSS in discount of dealing range (turtle soup)")
@@ -1917,7 +1931,7 @@ f_stepLeg(Leg lg) =>
                 lg.endWhy := "fake MSS (turtle soup)"
                 go := false
             else
-                f_drawMss(bI, pI, lg.m5 ? "MSS " + iLtfTf + "m" : "MSS")
+                f_drawMss(bI, pI, lg.z5.mss ? "MSS " + iLtfTf + "m" : "MSS")
         else
             go := false
     if go and iDisp
@@ -1930,8 +1944,8 @@ f_stepLeg(Leg lg) =>
                 if rng > 0 and body >= 0.5 * rng and (na(atr14[k]) or rng >= iDispAtr * atr14[k])
                     disp := true
                     break
-        if not disp and lg.m5
-            disp := f_disp5(bear, lg.x5i)
+        if not disp and lg.z5.mss
+            disp := f_disp5(bear, lg.z5.xi)
         if not disp
             f_note(lg, bear, "MSS without displacement (candle >= " + str.tostring(iDispAtr) + " ATR) - no signal yet")
         go := disp
@@ -1966,11 +1980,11 @@ f_stepLeg(Leg lg) =>
                         if na(best) or (bear ? g.top > best.top : g.bottom < best.bottom)
                             best := g
         if na(best)
-            best := f_best5(bear, lg.extremeBar, eq, true, dispEnd, lg.m5 ? lg.x5time : 0, drEq)
+            best := f_best5(bear, lg.extremeBar, eq, true, dispEnd, lg.z5.mss ? lg.z5.xt : 0, drEq)
         if na(best)
             best := f_noFvg(bear, farBar, lg.mssLevel, eq)
         if na(best)
-            f_note(lg, bear, "MSS" + (lg.m5 ? " " + iLtfTf + "m" : "") + " ✓ · FVG in " + (bear ? "discount" : "premium") + " ✕ (waiting)")
+            f_note(lg, bear, "MSS" + (lg.z5.mss ? " " + iLtfTf + "m" : "") + " ✓ · FVG in " + (bear ? "discount" : "premium") + " ✕ (waiting)")
         else if winNow == ""
             f_note(lg, bear, "MSS ✓ · FVG ✓ · killzone / silver bullet ✕")
         if na(best) or winNow == ""
@@ -1992,6 +2006,10 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         entry := close
         market := true
     float sRef = na(stopRef) ? lg.one : stopRef
+    // hunt setup entered on the lower timeframe: targets on the LTF leg (hunt extreme -> LTF swing it broke), like the zone setup
+    bool ltf = not isSb and lg.c5.mss
+    float lz = ltf ? lg.c5.zero : lg.zero
+    float l1 = ltf ? sRef : lg.one
     float drEq = (drHi + drLo) / 2
     if (useDR or (iMktEntry and not iOnRetrace)) and (buy ? entry >= drEq : entry <= drEq)
         rej := "entry in " + (buy ? "premium" : "discount") + " of the dealing range (50% = " + f_num(drEq) + ")"
@@ -2004,7 +2022,7 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         rej := "this stop-hunt swing already gave a trade (one trade per swing)"
     float risk = buy ? entry - stop : stop - entry
     float main = na
-    float partial = f_fib(lg, -iPart)
+    float partial = lz - iPart * (l1 - lz)
     partial := buy ? partial - iTpBuf * PIP : partial + iTpBuf * PIP
     float rr = 0.0
     string tpWhy = ""
@@ -2014,7 +2032,7 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         rej := "stop too tight (" + str.tostring(risk / PIP, "0.0") + " pips)"
     if rej == ""
         // silver bullet keeps its -2 (the move goes on); the hunt setup takes the first SDP zone of the hunt leg in premium / discount
-        [m0, w0] = f_mainTarget(buy, entry, risk, lg.zero, lg.one, isSb ? na : drEq, na(mainPx) ? f_fib(lg, -iTgt) : mainPx, "-" + str.tostring(isSb ? iZ2a : iTgt))
+        [m0, w0] = f_mainTarget(buy, entry, risk, lz, l1, isSb ? na : drEq, na(mainPx) ? lz - iTgt * (l1 - lz) : mainPx, "-" + str.tostring(isSb ? iZ2a : iTgt))
         main := m0
         tpWhy := w0
         if buy ? main <= entry : main >= entry
@@ -2078,16 +2096,17 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
             usedStops.shift()
         st.liveLeg := lg.oneBar
         string zoneTxt = isSb ? "-1/-1.5 silver bullet" : buy ? "hunt leg discount" : "hunt leg premium"
+        string ltfTxt = ltf ? " · MSS " + iLtfTf + "m" : ""
         if iShowTrade
             color col = buy ? cBuy : cSell
             int x2 = bar_index + iLineBars
             f_tradeLines(trNew, DRAW or not iOldSig, tpWhy)
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
             f_drawFvg(g, buy)
-            f_sigSdp(lg.one, lg.zero, lg.oneBar, lg.zeroBar, DRAW, col, isSb ? "SDP" : "hunt leg")
-            string txt = (buy ? "BUY " : "SELL ") + grade + " (" + str.tostring(score) + "/" + str.tostring(maxScore) + ")" + (isSb ? "\nSilver bullet -1/-1.5 (with the move)\n" : "\nReversal at prev. leg zone: hunt + MSS\n") + "Entry " + f_num(entry) + "\nSL " + f_num(stop) + "\nTP " + f_num(main) + tpWhy + "\nR:R 1:" + str.tostring(rr, "0.0") + "\nDealing range " + f_num(drLo) + " - " + f_num(drHi) + " · 50% " + f_num(drEq) + "\nDaily bias: " + f_dBiasTxt(buy) + "\n" + f_htfTxt(buy, entry) + "\n" + f_dFvgTxt(buy)
+            f_sigSdp(l1, lz, ltf ? f_bar5(lg.c5.xi, lg.oneBar) : lg.oneBar, ltf ? lg.c5.zeroBar : lg.zeroBar, DRAW, col, isSb ? "SDP" : ltf ? "entry leg " + iLtfTf + "m" : "hunt leg")
+            string txt = (buy ? "BUY " : "SELL ") + grade + " (" + str.tostring(score) + "/" + str.tostring(maxScore) + ")" + (isSb ? "\nSilver bullet -1/-1.5 (with the move)\n" : "\nReversal at prev. leg zone: hunt + MSS" + ltfTxt + "\n") + "Entry " + f_num(entry) + "\nSL " + f_num(stop) + "\nTP " + f_num(main) + tpWhy + "\nR:R 1:" + str.tostring(rr, "0.0") + "\nDealing range " + f_num(drLo) + " - " + f_num(drHi) + " · 50% " + f_num(drEq) + "\nDaily bias: " + f_dBiasTxt(buy) + "\n" + f_htfTxt(buy, entry) + "\n" + f_dFvgTxt(buy)
             float aB = na(atr14) ? 0.0 : atr14
-            string shortTxt = (buy ? "BUY " : "SELL ") + grade + " · R:R 1:" + str.tostring(rr, "0.0") + "\nEntry " + f_num(entry) + (market ? " (mkt)" : "") + "\nSL " + f_num(stop) + "  TP " + f_num(main)
+            string shortTxt = (buy ? "BUY " : "SELL ") + grade + (ltf ? " · " + iLtfTf + "m" : "") + " · R:R 1:" + str.tostring(rr, "0.0") + "\nEntry " + f_num(entry) + (market ? " (mkt)" : "") + "\nSL " + f_num(stop) + "  TP " + f_num(main)
             txt := (trNew.warn == "" ? "" : trNew.warn + "\n") + txt
             shortTxt := (trNew.warn == "" ? "" : "⚠ REDUCE SIZE\n") + shortTxt
             trNew.tip := txt
@@ -2096,17 +2115,17 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
                 trNew.lab := lb
             else
                 trNew.mini := true
-                trNew.kind := isSb ? "SB" : "hunt"
+                trNew.kind := isSb ? "SB" : ltf ? "hunt " + iLtfTf + "m" : "hunt"
                 trNew.lab := label.new(bar_index, buy ? low - 0.3 * aB : high + 0.3 * aB, (buy ? "▲ " : "▼ ") + (trNew.warn == "" ? "" : "⚠") + trNew.kind, style = buy ? label.style_label_up : label.style_label_down, color = color.new(color.black, 100), textcolor = color.new(col, 10), size = sSig, tooltip = txt)
         if f_gradeRank(grade) >= f_gradeRank(iMinGrade) and not ALJSON and not iOnRetrace
-            alert(f_sigTxt(buy, grade, (isSb ? "silver bullet -1/-1.5" : "stop-hunt leg (hunt + MSS)"), entry, market, stop, partial, main, rr, validBars) + (trNew.warn == "" ? "" : "\n" + trNew.warn), alert.freq_once_per_bar_close)
+            alert(f_sigTxt(buy, grade, (isSb ? "silver bullet -1/-1.5" : "stop-hunt leg (hunt + MSS)" + ltfTxt), entry, market, stop, partial, main, rr, validBars) + (trNew.warn == "" ? "" : "\n" + trNew.warn), alert.freq_once_per_bar_close)
         if f_gradeRank(grade) >= f_gradeRank(iMinGrade) and ALJSON
             string names = ""
             for nm in str.split(lg.names, ",")
                 names += (names == "" ? "" : ",") + f_q(nm)
-            string tg = "[{\"sd\":-1,\"price\":" + f_num(f_fib(lg, -1.0)) + "},{\"sd\":-1.5,\"price\":" + f_num(f_fib(lg, -1.5)) + "},{\"sd\":-2,\"price\":" + f_num(f_fib(lg, -2.0)) + "},{\"sd\":-2.5,\"price\":" + f_num(f_fib(lg, -2.5)) + "}]"
+            string tg = "[{\"sd\":-1,\"price\":" + f_num(lz - 1.0 * (l1 - lz)) + "},{\"sd\":-1.5,\"price\":" + f_num(lz - 1.5 * (l1 - lz)) + "},{\"sd\":-2,\"price\":" + f_num(lz - 2.0 * (l1 - lz)) + "},{\"sd\":-2.5,\"price\":" + f_num(lz - 2.5 * (l1 - lz)) + "}]"
             string cf = "{\"daily_bias\":" + f_q(f_dBiasTxt(buy)) + ",\"htf_ranges\":" + f_q(f_htfTxt(buy, entry)) + ",\"daily_fvg\":" + f_q(f_dFvgTxt(buy)) + ",\"htf\":" + f_b(htfOk) + (iUseSB ? ",\"silver_bullet\":" + f_b(inSB) : "") + (eqLeft != "" ? ",\"unfinished_eq\":" + f_q(eqLeft) : "") + (warn != "" ? ",\"warnings\":[" + f_q(warn) + "]" : "") + "}"
-            string js = "{\"passphrase\":" + f_q(iPass) + ",\"type\":\"signal\",\"setup\":" + f_q(setupName) + ",\"id\":" + f_q(id) + ",\"symbol\":" + f_q(TK) + ",\"exchange\":" + f_q(syminfo.prefix) + ",\"timeframe\":" + f_q(timeframe.period) + ",\"side\":" + f_q(side) + ",\"time\":" + f_q(str.format_time(time_close, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC")) + ",\"killzone\":" + f_q(win) + ",\"entry\":" + f_num(entry) + ",\"stop\":" + f_num(stop) + ",\"entry_type\":" + f_q(market ? "market" : "limit") + ",\"targets\":" + tg + ",\"main_target\":" + f_num(main) + ",\"partial_target\":" + f_num(partial) + ",\"rr\":" + str.tostring(rr, "0.00") + ",\"zone\":" + f_q(zoneTxt) + ",\"sdp_one\":" + f_num(lg.one) + ",\"sdp_zero\":" + f_num(lg.zero) + ",\"leg_one\":" + f_num(lg.one) + ",\"leg_zero\":" + f_num(lg.zero) + ",\"mss_level\":" + f_num(isSb ? lg.sbLvl : lg.cLevel) + ",\"fvg_top\":" + f_num(g.top) + ",\"fvg_bottom\":" + f_num(g.bottom) + ",\"swept\":[" + names + "],\"midnight_open\":" + f_num(midOpen) + ",\"dr_high\":" + f_num(drHi) + ",\"dr_low\":" + f_num(drLo) + ",\"dr_eq\":" + f_num(drEq) + ",\"confirmations\":" + cf + ",\"score\":" + str.tostring(score) + ",\"max_score\":" + str.tostring(maxScore) + ",\"grade\":" + f_q(grade) + "}"
+            string js = "{\"passphrase\":" + f_q(iPass) + ",\"type\":\"signal\",\"setup\":" + f_q(setupName) + ",\"id\":" + f_q(id) + ",\"symbol\":" + f_q(TK) + ",\"exchange\":" + f_q(syminfo.prefix) + ",\"timeframe\":" + f_q(timeframe.period) + ",\"side\":" + f_q(side) + ",\"time\":" + f_q(str.format_time(time_close, "yyyy-MM-dd'T'HH:mm:ss'Z'", "UTC")) + ",\"killzone\":" + f_q(win) + ",\"entry\":" + f_num(entry) + ",\"stop\":" + f_num(stop) + ",\"entry_type\":" + f_q(market ? "market" : "limit") + ",\"targets\":" + tg + ",\"main_target\":" + f_num(main) + ",\"partial_target\":" + f_num(partial) + ",\"rr\":" + str.tostring(rr, "0.00") + ",\"zone\":" + f_q(zoneTxt) + ",\"sdp_one\":" + f_num(lg.one) + ",\"sdp_zero\":" + f_num(lg.zero) + ",\"leg_one\":" + f_num(l1) + ",\"leg_zero\":" + f_num(lz) + ",\"mss_level\":" + f_num(isSb ? lg.sbLvl : ltf ? lg.c5.zero : lg.cLevel) + ",\"mss_tf\":" + f_q(ltf ? iLtfTf : timeframe.period) + ",\"fvg_top\":" + f_num(g.top) + ",\"fvg_bottom\":" + f_num(g.bottom) + ",\"swept\":[" + names + "],\"midnight_open\":" + f_num(midOpen) + ",\"dr_high\":" + f_num(drHi) + ",\"dr_low\":" + f_num(drLo) + ",\"dr_eq\":" + f_num(drEq) + ",\"confirmations\":" + cf + ",\"score\":" + str.tostring(score) + ",\"max_score\":" + str.tostring(maxScore) + ",\"grade\":" + f_q(grade) + "}"
             alert(js, alert.freq_once_per_bar_close)
     emitted
 
@@ -2124,6 +2143,7 @@ f_stepCont(Leg lg) =>
             go := false
     if go
         if not lg.cMss
+            bool noted = false
             if na(lg.cLevel)
                 float pI = na
                 array<int> pb = buy ? ithB : itlB
@@ -2156,10 +2176,25 @@ f_stepCont(Leg lg) =>
                     lg.cMss := true
                     lg.cMssBar := bar_index
                 else
+                    noted := true
                     f_note(lg, buy, "MSS without displacement (candle >= " + str.tostring(iDispAtr) + " ATR) - no signal yet")
+            // no MSS on the chart: the lower timeframe - break of the LTF swing before the hunt extreme (the hunt is the stop hunt)
+            if not lg.cMss and LTF_MSS
+                if f_track5(lg.c5, buy, lg.oneBar, false, lg.oneBar)
+                    if not iDisp or f_disp5(buy, lg.c5.xi)
+                        lg.cMss := true
+                        lg.cMssBar := bar_index
+                        lg.c5.mss := true
+                        f_drawMss(lg.c5.zeroBar, lg.c5.zero, "MSS " + iLtfTf + "m")
+                    else if not noted
+                        f_note(lg, buy, "MSS " + iLtfTf + "m without displacement (candle >= " + str.tostring(iDispAtr) + " ATR) - no signal yet")
             go := lg.cMss
     if go
-        float eq = (lg.one + lg.cFar) / 2
+        // MSS from the lower timeframe: its extreme is the hunt (a wick past fib 1 that did not close there counts)
+        bool ltf = lg.c5.mss
+        float hl = ltf and not na(lg.c5.xp) ? (buy ? math.min(lg.one, lg.c5.xp) : math.max(lg.one, lg.c5.xp)) : lg.one
+        int hlB = ltf ? f_bar5(lg.c5.xi, lg.oneBar) : lg.oneBar
+        float eq = (hl + lg.cFar) / 2
         int oxc = bar_index - lg.oneBar
         float farC = buy ? high : low
         int farCBar = bar_index
@@ -2173,10 +2208,10 @@ f_stepCont(Leg lg) =>
         float base = na(lg.oppPx) ? lg.zero : lg.oppPx
         int baseB = na(lg.oppPx) ? lg.zeroBar : lg.oppBar
         bool farOut = buy ? farC > base : farC < base
-        float drHi = buy ? (farOut ? farC : base) : lg.one
-        int drHiB = buy ? (farOut ? farCBar : baseB) : lg.oneBar
-        float drLo = buy ? lg.one : (farOut ? farC : base)
-        int drLoB = buy ? lg.oneBar : (farOut ? farCBar : baseB)
+        float drHi = buy ? (farOut ? farC : base) : hl
+        int drHiB = buy ? (farOut ? farCBar : baseB) : hlB
+        float drLo = buy ? hl : (farOut ? farC : base)
+        int drLoB = buy ? hlB : (farOut ? farCBar : baseB)
         float drEq = (drHi + drLo) / 2
         float eqD = useDR ? (buy ? math.min(eq, drEq) : math.max(eq, drEq)) : eq
         Gap best = lg.cMssBar == bar_index ? f_mssMkt(buy, eqD) : na
@@ -2184,16 +2219,16 @@ f_stepCont(Leg lg) =>
         if gs > 0
             for idx = math.max(0, gs - 60) to gs - 1
                 Gap g = gaps.get(idx)
-                if g.bar - (iDispHunt ? 1 : 2) >= lg.oneBar and g.bar < bar_index and g.bar <= dispEndC and not g.filled and g.bull == buy and not usedFvg.includes(buy ? g.bar : -g.bar) and f_drOk(f_gapEntry(g, buy), buy, drEq)
+                if g.bar - (iDispHunt ? 1 : 2) >= hlB and g.bar < bar_index and g.bar <= dispEndC and not g.filled and g.bull == buy and not usedFvg.includes(buy ? g.bar : -g.bar) and f_drOk(f_gapEntry(g, buy), buy, drEq)
                     if not iPD or (buy ? g.bottom <= eq : g.top >= eq)
                         if na(best) or (buy ? g.top > best.top : g.bottom < best.bottom)
                             best := g
         if na(best)
-            best := f_best5(buy, lg.oneBar + 1, eq, false, dispEndC, 0, drEq)
+            best := f_best5(buy, ltf ? hlB : lg.oneBar + 1, eq, false, dispEndC, ltf ? lg.c5.xt : 0, drEq)
         if na(best)
-            best := f_noFvg(buy, farCBar, lg.cLevel, eqD)
+            best := f_noFvg(buy, farCBar, ltf ? lg.c5.zero : lg.cLevel, eqD)
         if na(best)
-            f_note(lg, buy, "MSS ✓ · FVG in " + (buy ? "discount" : "premium") + " ✕ (waiting)")
+            f_note(lg, buy, "MSS" + (ltf ? " " + iLtfTf + "m" : "") + " ✓ · FVG in " + (buy ? "discount" : "premium") + " ✕ (waiting)")
         else if winNow == ""
             f_note(lg, buy, "MSS ✓ · FVG ✓ · killzone / silver bullet ✕")
         if na(best) or winNow == ""
@@ -2218,7 +2253,7 @@ f_stepCont(Leg lg) =>
         if go
             lg.cDone := true
             f_useGap(best, buy)
-            out := f_signalCont(lg, best, winNow, na, na, "continuation", drHi, drHiB, drLo, drLoB)
+            out := f_signalCont(lg, best, winNow, ltf ? hl : na, na, "continuation", drHi, drHiB, drLo, drLoB)
     out
 
 f_stepSb(Leg lg) =>
@@ -2435,7 +2470,7 @@ f_contTxt(array<Leg> book) =>
     if iHunt
         for lg in book
             if not lg.done and not lg.cDone and lg.cMss
-                t := "hunt MSS ✓, wait retrace to FVG"
+                t := "hunt MSS" + (lg.c5.mss ? " " + iLtfTf + "m" : "") + " ✓, wait retrace to FVG"
     t
 f_bookTxt(array<Leg> book) =>
     string t = "—"
@@ -2445,7 +2480,7 @@ f_bookTxt(array<Leg> book) =>
         if not lg.done
             live += 1
             if lg.zone != ""
-                best := lg.mssBar < 0 ? "at zone " + lg.zone + ", wait MSS" + (LTF_MSS ? " (" + timeframe.period + "m / " + iLtfTf + "m)" : "") : "MSS" + (lg.m5 ? " " + iLtfTf + "m" : "") + " ✓, wait FVG"
+                best := lg.mssBar < 0 ? "at zone " + lg.zone + ", wait MSS" + (LTF_MSS ? " (" + timeframe.period + "m / " + iLtfTf + "m)" : "") : "MSS" + (lg.z5.mss ? " " + iLtfTf + "m" : "") + " ✓, wait FVG"
     if live > 0
         t := best != "" ? best : str.tostring(live) + (live == 1 ? " leg" : " legs") + ", waiting zone"
     t
@@ -2471,4 +2506,4 @@ if iShowDash and barstate.islast
     else
         f_row(10, "Size", "— (no open signal)", color.gray)
 
-// ===== END OF SCRIPT: line 2474 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2509 — if your editor stops before this line, the copy was cut off =====
