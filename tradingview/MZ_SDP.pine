@@ -812,7 +812,7 @@ f_best5(bool gapBull, int fromBar, float eq, bool ceRule, int toBar, int fromT, 
     Gap best = na
     if (LTF_ON or fromT > 0) and gaps5.size() > 0
         for g in gaps5
-            if g.b0 >= fromBar and g.bar <= toBar and (fromT <= 0 or g.t1 + (iDispHunt ? LTF_MS : 0) >= fromT) and not g.filled and g.bull == gapBull and not used5.includes(g.t2) and f_drOk(f_gapEntry(g, gapBull), gapBull, drEq)
+            if (fromT > 0 ? g.t1 + (iDispHunt ? LTF_MS : 0) >= fromT : g.b0 >= fromBar) and g.bar <= toBar and not g.filled and g.bull == gapBull and not used5.includes(g.t2) and f_drOk(f_gapEntry(g, gapBull), gapBull, drEq)
                 float ce = (g.top + g.bottom) / 2
                 bool pdOk = not iPD or (gapBull ? (ceRule ? ce <= eq : g.bottom <= eq) : (ceRule ? ce >= eq : g.top >= eq))
                 if pdOk and (na(best) or (gapBull ? g.top > best.top : g.bottom < best.bottom))
@@ -1307,6 +1307,7 @@ f_evTxt(Trade tr, string ev, float px, float r) =>
     string s = (tr.sell ? "SELL " : "BUY ") + TK + " (signal " + tr.id + ")"
     ev == "filled" ? (iOnRetrace ? (tr.sell ? "🔴 SELL " : "🟢 BUY ") + TK + " " + timeframe.period + "m NOW at " + f_num(px) + " (price is back in the FVG)\nSL " + f_num(tr.stop) + " · TP " + f_num(tr.tpMain) + (na(tr.tp1) ? "" : " (partial " + f_num(tr.tp1) + ")") + (tr.warn == "" ? "" : "\n" + tr.warn) + "\nSignal " + tr.id : "✅ " + s + " FILLED at " + f_num(px)) :
      ev == "cancel" ? "❌ " + s + " CANCELLED: target reached before the entry - delete the limit order, do not enter" :
+     ev == "void" ? "❌ " + s + " NOT ENTERED: price opened at " + f_num(px) + ", beyond the stop - skip this signal" :
      ev == "expired" ? "⌛ " + s + " EXPIRED: not filled in time - delete the limit order" :
      ev == "tp1" ? "💰 " + s + " PARTIAL hit at " + f_num(px) + " - close " + str.tostring(iPartFrac * 100, "0") + "%, keep the stop" :
      ev == "tp" ? "🎯 " + s + " TARGET hit " + f_num(px) + " · " + f_rTxt(r) + "R" :
@@ -1362,7 +1363,7 @@ f_extendLines(Trade tr) =>
                 box.set_right(bx, math.max(xe, box.get_left(bx) + 1))
     tr.state
 f_endLines(Trade tr, string ev) =>
-    if not na(tr.lns) and (ev == "cancel" or ev == "expired")
+    if not na(tr.lns) and (ev == "cancel" or ev == "expired" or ev == "void")
         bool drop = (tr.mini and not iOldCanc) or iOnRetrace
         for ln in tr.lns
             if drop
@@ -1389,15 +1390,15 @@ f_endLines(Trade tr, string ev) =>
     tr.state
 
 f_markBox(Trade tr, string ev, float r) =>
-    if not na(tr.lab) and iOnRetrace and (ev == "cancel" or ev == "expired")
+    if not na(tr.lab) and iOnRetrace and (ev == "cancel" or ev == "expired" or ev == "void")
         label.delete(tr.lab)  // the price never came back to the FVG: no signal
     else if not na(tr.lab) and tr.mini
         string arrow = tr.sell ? "▼" : "▲"
-        if ev == "cancel" or ev == "expired"
+        if ev == "cancel" or ev == "expired" or ev == "void"
             if iOldCanc
-                label.set_text(tr.lab, arrow + " " + tr.kind + (ev == "cancel" ? " ✕" : " ⌛"))
+                label.set_text(tr.lab, arrow + " " + tr.kind + (ev == "expired" ? " ⌛" : " ✕"))
                 label.set_textcolor(tr.lab, color.new(color.gray, 20))
-                label.set_tooltip(tr.lab, (ev == "cancel" ? "CANCELLED - TP before entry\n" : "EXPIRED - not filled\n") + tr.tip)
+                label.set_tooltip(tr.lab, (ev == "cancel" ? "CANCELLED - TP before entry\n" : ev == "void" ? "NOT ENTERED - opened beyond the stop\n" : "EXPIRED - not filled\n") + tr.tip)
             else
                 label.delete(tr.lab)
         else if ev == "tp" or ev == "sl" or ev == "close"
@@ -1405,7 +1406,7 @@ f_markBox(Trade tr, string ev, float r) =>
             label.set_textcolor(tr.lab, r > 0.05 ? cBuy : r < -0.05 ? cSell : color.gray)
             label.set_tooltip(tr.lab, (ev == "tp" ? "TP " : ev == "sl" ? "SL " : "closed (news) ") + f_rTxt(r) + "R\n" + tr.tip)
     else if not na(tr.lab)
-        string tag = ev == "cancel" ? "❌ CANCELLED - TP before entry, do not enter" : ev == "expired" ? "⌛ EXPIRED - not filled, do not enter" : ev == "filled" ? "✅ FILLED" : ev == "tp" ? "🎯 TP " + f_rTxt(r) + "R" : ev == "sl" ? "🛑 SL " + f_rTxt(r) + "R" : ev == "close" ? "📰 closed (news) " + f_rTxt(r) + "R" : ""
+        string tag = ev == "cancel" ? "❌ CANCELLED - TP before entry, do not enter" : ev == "void" ? "❌ NOT ENTERED - opened beyond the stop" : ev == "expired" ? "⌛ EXPIRED - not filled, do not enter" : ev == "filled" ? "✅ FILLED" : ev == "tp" ? "🎯 TP " + f_rTxt(r) + "R" : ev == "sl" ? "🛑 SL " + f_rTxt(r) + "R" : ev == "close" ? "📰 closed (news) " + f_rTxt(r) + "R" : ""
         if tag != ""
             string body = label.get_text(tr.lab)
             if str.startswith(body, "✅ FILLED\n")
@@ -1413,18 +1414,18 @@ f_markBox(Trade tr, string ev, float r) =>
             if str.startswith(body, "⏳ waiting for the FVG\n")
                 body := str.substring(body, str.length("⏳ waiting for the FVG\n"))
             label.set_text(tr.lab, tag + "\n" + body)
-            if ev == "cancel" or ev == "expired"
+            if ev == "cancel" or ev == "expired" or ev == "void"
                 label.set_color(tr.lab, color.new(color.gray, 55))
                 label.set_textcolor(tr.lab, color.new(color.white, 30))
     tr.state
 f_update(Trade tr, string ev, float px, float r) =>
     f_markBox(tr, ev, r)
     f_endLines(tr, ev)
-    bool quiet = iOnRetrace and (ev == "cancel" or ev == "expired")  // never announced -> nothing to cancel
+    bool quiet = iOnRetrace and (ev == "cancel" or ev == "expired" or ev == "void")  // never announced -> nothing to cancel
     if (iAlUpdates or (iOnRetrace and ev == "filled")) and not ALJSON and not quiet
         alert(f_evTxt(tr, ev, px, r), alert.freq_once_per_bar_close)
     if iAlUpdates and ALJSON
-        string js = "{\"passphrase\":" + f_q(iPass) + ",\"type\":\"update\",\"id\":" + f_q(tr.id) + ",\"symbol\":" + f_q(TK) + ",\"event\":" + f_q(ev) + ",\"price\":" + f_num(px) + ",\"r\":" + (na(r) ? "null" : str.tostring(r, "0.00")) + "}"
+        string js = "{\"passphrase\":" + f_q(iPass) + ",\"type\":\"update\",\"id\":" + f_q(tr.id) + ",\"symbol\":" + f_q(TK) + ",\"event\":" + f_q(ev == "void" ? "cancel" : ev) + ",\"price\":" + f_num(px) + ",\"r\":" + (na(r) ? "null" : str.tostring(r, "0.00")) + "}"
         alert(js, alert.freq_once_per_bar_close)
     ev
 
@@ -1473,8 +1474,11 @@ if trades.size() > 0
                 if tr.market
                     tr.entry := open
                 tr.risk := math.abs(tr.entry - tr.stop)
-                if tr.risk <= 0 or (tr.sell ? tr.entry >= tr.stop : tr.entry <= tr.stop)  // market fill opened beyond the stop
+                if tr.risk <= 0
                     tr.state := 2
+                else if tr.sell ? tr.entry >= tr.stop : tr.entry <= tr.stop  // market fill would open beyond the stop
+                    tr.state := 2
+                    f_update(tr, "void", tr.entry, na)
                 else
                     tr.state := 1
                     f_update(tr, "filled", tr.entry, na)
@@ -2143,7 +2147,6 @@ f_stepCont(Leg lg) =>
             go := false
     if go
         if not lg.cMss
-            bool noted = false
             if na(lg.cLevel)
                 float pI = na
                 array<int> pb = buy ? ithB : itlB
@@ -2176,25 +2179,23 @@ f_stepCont(Leg lg) =>
                     lg.cMss := true
                     lg.cMssBar := bar_index
                 else
-                    noted := true
                     f_note(lg, buy, "MSS without displacement (candle >= " + str.tostring(iDispAtr) + " ATR) - no signal yet")
-            // no MSS on the chart: the lower timeframe - break of the LTF swing before the hunt extreme (the hunt is the stop hunt)
-            if not lg.cMss and LTF_MSS
+            // the chart never broke the level: the lower timeframe - break of the LTF swing before the hunt extreme (the hunt is the stop hunt)
+            if not lg.cMss and not lg.cMssDrawn and LTF_MSS
                 if f_track5(lg.c5, buy, lg.oneBar, false, lg.oneBar)
                     if not iDisp or f_disp5(buy, lg.c5.xi)
                         lg.cMss := true
                         lg.cMssBar := bar_index
                         lg.c5.mss := true
                         f_drawMss(lg.c5.zeroBar, lg.c5.zero, "MSS " + iLtfTf + "m")
-                    else if not noted
+                    else
                         f_note(lg, buy, "MSS " + iLtfTf + "m without displacement (candle >= " + str.tostring(iDispAtr) + " ATR) - no signal yet")
             go := lg.cMss
     if go
         // MSS from the lower timeframe: its extreme is the hunt (a wick past fib 1 that did not close there counts)
         bool ltf = lg.c5.mss
         float hl = ltf and not na(lg.c5.xp) ? (buy ? math.min(lg.one, lg.c5.xp) : math.max(lg.one, lg.c5.xp)) : lg.one
-        int hlB = ltf ? f_bar5(lg.c5.xi, lg.oneBar) : lg.oneBar
-        float eq = (hl + lg.cFar) / 2
+        int hlB = ltf ? math.max(lg.oneBar, f_bar5(lg.c5.xi, lg.oneBar)) : lg.oneBar
         int oxc = bar_index - lg.oneBar
         float farC = buy ? high : low
         int farCBar = bar_index
@@ -2202,7 +2203,18 @@ f_stepCont(Leg lg) =>
             if buy ? high[k] >= farC : low[k] <= farC
                 farC := buy ? high[k] : low[k]
                 farCBar := bar_index - k
-        int dispEndC = iFvgDisp ? farCBar : bar_index
+        // displacement leg: from the hunt (15m) or from the LTF extreme, which can be a later wick past fib 1
+        float farD = farC
+        int farDBar = farCBar
+        if ltf and hlB > lg.oneBar
+            farD := buy ? high : low
+            farDBar := bar_index
+            for k = 0 to bar_index - hlB
+                if buy ? high[k] >= farD : low[k] <= farD
+                    farD := buy ? high[k] : low[k]
+                    farDBar := bar_index - k
+        float eq = (hl + (ltf ? farD : lg.cFar)) / 2
+        int dispEndC = iFvgDisp ? farDBar : bar_index
         // dealing range: SSL = the hunt (buy), BSL = the last opposite stop hunt beyond it, else fib 0; wider if price went past it
         f_oppHunt(lg)
         float base = na(lg.oppPx) ? lg.zero : lg.oppPx
@@ -2226,7 +2238,7 @@ f_stepCont(Leg lg) =>
         if na(best)
             best := f_best5(buy, ltf ? hlB : lg.oneBar + 1, eq, false, dispEndC, ltf ? lg.c5.xt : 0, drEq)
         if na(best)
-            best := f_noFvg(buy, farCBar, ltf ? lg.c5.zero : lg.cLevel, eqD)
+            best := f_noFvg(buy, farDBar, ltf ? lg.c5.zero : lg.cLevel, eqD)
         if na(best)
             f_note(lg, buy, "MSS" + (ltf ? " " + iLtfTf + "m" : "") + " ✓ · FVG in " + (buy ? "discount" : "premium") + " ✕ (waiting)")
         else if winNow == ""
@@ -2506,4 +2518,4 @@ if iShowDash and barstate.islast
     else
         f_row(10, "Size", "— (no open signal)", color.gray)
 
-// ===== END OF SCRIPT: line 2509 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2521 — if your editor stops before this line, the copy was cut off =====
