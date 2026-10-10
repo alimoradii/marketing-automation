@@ -102,8 +102,9 @@ int    iValidMin = input.int(120, "Limit order valid (min) — not in notes", gr
 
 const string G_D = "📏 Dealing range (MZ ICT knowledge base)"
 bool   iShowDR   = input.bool(true, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
-bool   iShowLDR  = input.bool(true, "Draw the live dealing range (last BSL hunt ↔ last SSL hunt)", group = G_D, tooltip = "The dealing range the market is in now: from the last swing that took buy-side liquidity (top) to the last swing that took sell-side liquidity (bottom) - the stop-hunt legs the indicator tracks. Price trading past it widens it; a new stop hunt on either side starts a new range and the old one stays, fainter. Premium above the 50%, discount below. Drawing only: each signal is checked against its own setup's dealing range.")
-int    iLdrN     = input.int(3, "…keep the last N ranges", minval = 1, maxval = 10, group = G_D)
+bool   iShowLDR  = input.bool(true, "Draw the live dealing range (last BSL hunt ↔ last SSL hunt)", group = G_D, tooltip = "The dealing range the market is in now: from the last swing that took buy-side liquidity (top) to the last swing that took sell-side liquidity (bottom) - the stop-hunt legs the indicator tracks. Price trading past it widens it; a new stop hunt on either side starts a new range (older ones kept as faint lines, see the next setting). Premium above the 50%, discount below. Drawing only: each signal is checked against its own setup's dealing range.")
+int    iLdrN     = input.int(1, "…keep the last N ranges", minval = 1, maxval = 10, group = G_D)
+string iLdrFill  = input.string("Right of price", "…premium / discount colours", options = ["Right of price", "Whole range"], group = G_D, tooltip = "Right of price: the range is drawn with lines (BSL top, 50%, SSL bottom) and the green / red colours only in a band to the right of the last candle, so the candles stay readable. Whole range: coloured boxes over the whole range.")
 color  cDisc     = input.color(#4caf50, "Discount", inline = "drc", group = G_D)
 color  cPrem     = input.color(#f23645, "Premium", inline = "drc", group = G_D)
 
@@ -148,11 +149,12 @@ bool  iShowMss   = input.bool(true, "MSS line (red, like the notes)", group = G_
 bool  iMssDraw   = input.bool(true, "Draw an SDP only after its MSS (price crossed its 0)", tooltip = "Videos (SDP, 07:10): we draw the SDP once we are sure the stop hunt happened - when there is a market structure shift.", group = G_V)
 bool  iFibTv     = input.bool(true, "SDP like the TradingView fib tool (lines only as wide as 0..1, solid, not extended)", group = G_V)
 int   iFibLen    = input.int(20, "Fib line length after fib 1 (bars, 0 = up to price)", minval = 0, group = G_V)
-string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest) + legs that traded. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
+string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest) + the last leg that traded; only the newest signal keeps its entry-leg SDP. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
 string iTxtSize  = input.string("Normal", "SDP text size", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iSigSize  = input.string("Normal", "Signal text size (box, Entry / SL / TP, markers)", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iNoteSize = input.string("Tiny", "Notes / MSS text size", options = ["Tiny", "Small", "Normal", "Large"], group = G_V)
 string iDashSize = input.string("Small", "Dashboard text size", options = ["Small", "Normal", "Large"], group = G_V)
+string iDashPos  = input.string("Top right", "Dashboard position", options = ["Top right", "Bottom right", "Bottom left", "Top left"], group = G_V)
 bool  iFibLeft   = input.bool(true, "Fib labels on the left (like the TradingView fib tool)", group = G_V)
 string iHist     = input.string("All legs", "History (Full display): keep finished legs", options = ["All legs", "Traded legs only", "Live legs only"], inline = "hist", group = G_V)
 int   iHistN     = input.int(20, "last", minval = 1, maxval = 40, inline = "hist", tooltip = "TradingView allows 500 lines/labels per indicator, so only the most recent finished legs are kept. Each one shows why it ended without a trade.", group = G_V)
@@ -1263,15 +1265,23 @@ if fsq.size() > 0
             book.push(lg)
     fsq.clear()
 
-// live dealing range: widened when price trades past it; a new stop hunt on either side starts a new one (the old one stays, fainter)
-var array<box>   ldrP = array.new<box>()
-var array<box>   ldrD = array.new<box>()
+// live dealing range: widened when price trades past it; a new stop hunt on either side starts a new one. Drawn as lines
+// (BSL top, 50%, SSL bottom) with the premium / discount colours in a band right of the last candle (or over the whole range)
+var array<line>  ldrT = array.new<line>()
+var array<line>  ldrB = array.new<line>()
 var array<line>  ldrE = array.new<line>()
 var array<label> ldrL = array.new<label>()
+var array<box>   ldrP = array.new<box>()
+var array<box>   ldrD = array.new<box>()
 f_fadeBox(box b, color c) =>
     box.set_bgcolor(b, color.new(c, 95))
     box.set_border_color(b, color.new(c, 80))
     box.set_text_color(b, color.new(c, 45))
+    b
+f_hideBox(box b) =>
+    box.set_bgcolor(b, color.new(color.black, 100))
+    box.set_border_color(b, color.new(color.black, 100))
+    box.set_text(b, "")
     b
 if not na(lDrHi) and high > lDrHi
     lDrHi := high
@@ -1281,40 +1291,55 @@ if not na(lDrLo) and low < lDrLo
     lDrLoB := bar_index
 if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
     float lEq = (lDrHi + lDrLo) / 2
+    bool whole = iLdrFill == "Whole range"
     int lx1 = math.max(0, bar_index - 4500, math.min(lDrHiB, lDrLoB))
-    int lx2 = bar_index + 3
-    string tP = "Dealing range · Premium · BSL " + f_num(lDrHi)
+    int lx2 = bar_index + 25
+    int bx1 = whole ? lx1 : bar_index + 1
+    string tP = "Premium · BSL " + f_num(lDrHi)
     string tD = "Discount · SSL " + f_num(lDrLo)
     if lDrNew or ldrP.size() == 0
-        if ldrP.size() > 0
-            box.set_right(ldrP.last(), bar_index)
-            box.set_right(ldrD.last(), bar_index)
-            f_fadeBox(ldrP.last(), cPrem)
-            f_fadeBox(ldrD.last(), cDisc)
-            line.set_x2(ldrE.last(), bar_index)
-            line.set_color(ldrE.last(), color.new(color.gray, 50))
+        if ldrP.size() > 0  // the previous range stops here as faint lines; its colour band goes (it would sit over later candles)
+            for ln in array.from(ldrT.last(), ldrB.last(), ldrE.last())
+                line.set_x2(ln, bar_index)
+                line.set_color(ln, color.new(color.gray, 65))
             label.set_x(ldrL.last(), bar_index)
-            label.set_textcolor(ldrL.last(), color.new(color.gray, 40))
-        ldrP.push(box.new(lx1, lDrHi, lx2, lEq, border_color = color.new(cPrem, 55), border_style = line.style_dashed, bgcolor = color.new(cPrem, 88), text = tP, text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top))
-        ldrD.push(box.new(lx1, lEq, lx2, lDrLo, border_color = color.new(cDisc, 55), border_style = line.style_dashed, bgcolor = color.new(cDisc, 88), text = tD, text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom))
-        ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 20), style = line.style_dashed))
+            label.set_textcolor(ldrL.last(), color.new(color.gray, 55))
+            if whole
+                box.set_right(ldrP.last(), bar_index)
+                box.set_right(ldrD.last(), bar_index)
+                f_fadeBox(ldrP.last(), cPrem)
+                f_fadeBox(ldrD.last(), cDisc)
+            else
+                f_hideBox(ldrP.last())
+                f_hideBox(ldrD.last())
+        ldrT.push(line.new(lx1, lDrHi, lx2, lDrHi, color = color.new(cPrem, 30), style = line.style_dotted))
+        ldrB.push(line.new(lx1, lDrLo, lx2, lDrLo, color = color.new(cDisc, 30), style = line.style_dotted))
+        ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 30), style = line.style_dashed))
         ldrL.push(label.new(lx2, lEq, "50% " + f_num(lEq), style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
+        ldrP.push(box.new(bx1, lDrHi, lx2, lEq, border_color = color.new(cPrem, 100), bgcolor = color.new(cPrem, whole ? 90 : 80), text = tP, text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top, text_wrap = text.wrap_auto))
+        ldrD.push(box.new(bx1, lEq, lx2, lDrLo, border_color = color.new(cDisc, 100), bgcolor = color.new(cDisc, whole ? 90 : 80), text = tD, text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom, text_wrap = text.wrap_auto))
         while ldrP.size() > iLdrN
-            box.delete(ldrP.shift())
-            box.delete(ldrD.shift())
+            line.delete(ldrT.shift())
+            line.delete(ldrB.shift())
             line.delete(ldrE.shift())
             label.delete(ldrL.shift())
+            box.delete(ldrP.shift())
+            box.delete(ldrD.shift())
     else
-        box.set_lefttop(ldrP.last(), lx1, lDrHi)
-        box.set_rightbottom(ldrP.last(), lx2, lEq)
-        box.set_text(ldrP.last(), tP)
-        box.set_lefttop(ldrD.last(), lx1, lEq)
-        box.set_rightbottom(ldrD.last(), lx2, lDrLo)
-        box.set_text(ldrD.last(), tD)
+        line.set_xy1(ldrT.last(), lx1, lDrHi)
+        line.set_xy2(ldrT.last(), lx2, lDrHi)
+        line.set_xy1(ldrB.last(), lx1, lDrLo)
+        line.set_xy2(ldrB.last(), lx2, lDrLo)
         line.set_xy1(ldrE.last(), lx1, lEq)
         line.set_xy2(ldrE.last(), lx2, lEq)
         label.set_xy(ldrL.last(), lx2, lEq)
         label.set_text(ldrL.last(), "50% " + f_num(lEq))
+        box.set_lefttop(ldrP.last(), bx1, lDrHi)
+        box.set_rightbottom(ldrP.last(), lx2, lEq)
+        box.set_text(ldrP.last(), tP)
+        box.set_lefttop(ldrD.last(), bx1, lEq)
+        box.set_rightbottom(ldrD.last(), lx2, lDrLo)
+        box.set_text(ldrD.last(), tD)
 lDrNew := false
 
 f_dBiasTxt(bool buy) =>
@@ -1392,15 +1417,28 @@ f_evTxt(Trade tr, string ev, float px, float r) =>
      ev == "tp" ? "🎯 " + s + " TARGET hit " + f_num(px) + " · " + f_rTxt(r) + "R" :
      ev == "sl" ? "🛑 " + s + " STOP hit " + f_num(px) + " · " + f_rTxt(r) + "R" :
      ev == "close" ? "📰 " + s + " CLOSED before red news at " + f_num(px) + " · " + f_rTxt(r) + "R" : s + " " + ev
+var array<line>  sigSdpL = array.new<line>()
+var array<label> sigSdpT = array.new<label>()
 f_sigSdp(float one, float zero, int b1, int b0, bool full, color col, string tag) =>
+    if iClean  // Clean view: only the newest signal keeps its entry-leg SDP
+        for ln in sigSdpL
+            line.delete(ln)
+        for lb in sigSdpT
+            label.delete(lb)
+        sigSdpL.clear()
+        sigSdpT.clear()
     int x1 = b0 >= 0 ? math.min(b0, b1) : b1
     int x2 = math.max(math.max(b0, b1), x1 + 2)
     array<float> ks = full ? array.from(1.0, 0.786, 0.705, 0.618, 0.5, 0.0, -1.0, -1.5, -2.0, -2.5) : array.from(1.0, 0.0, -1.0, -2.0, -2.5)
     for k in ks
         float y = zero + k * (one - zero)
-        line.new(x1, y, x2, y, color = color.new(col, k == 0.0 or k == 1.0 ? 15 : full ? 40 : 55))
-        if full
-            label.new(x1, y, str.tostring(k) + " (" + f_num(y) + ")" + (k == 1.0 ? "  " + tag : ""), style = label.style_label_right, color = color.new(color.black, 100), textcolor = col, size = sTxt)
+        line ln = line.new(x1, y, x2, y, color = color.new(col, k == 0.0 or k == 1.0 ? 15 : full ? 40 : 55))
+        if iClean
+            sigSdpL.push(ln)
+        if full and (k == 1.0 or k == 0.0 or k == -1.0 or k == -2.0)
+            label lb = label.new(x1, y, str.tostring(k) + " (" + f_num(y) + ")" + (k == 1.0 ? "  " + tag : ""), style = label.style_label_right, color = color.new(color.black, 100), textcolor = col, size = sTxt)
+            if iClean
+                sigSdpT.push(lb)
     ks.size()
 
 f_tradeLines(Trade tr, bool full, string tpWhy) =>
@@ -1425,7 +1463,7 @@ f_tradeLines(Trade tr, bool full, string tpWhy) =>
 f_drawDR(Trade tr, float hi, int hiB, float lo, int loB, bool buy) =>
     tr.bxs := array.new<box>()
     if iShowDR and DRAW and not na(hi) and not na(lo) and hi > lo
-        int x1 = math.max(0, bar_index - 1500, hiB >= 0 and loB >= 0 ? math.min(hiB, loB) : math.max(hiB, loB))
+        int x1 = bar_index  // as wide as the signal's entry / SL / TP lines (the live range shows where it comes from)
         float eq = (hi + lo) / 2
         tr.bxs.push(box.new(x1, hi, bar_index + 1, eq, border_color = color.new(cPrem, 65), bgcolor = color.new(cPrem, buy ? 92 : 84), text = "Premium · BSL " + f_num(hi), text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top))
         tr.bxs.push(box.new(x1, eq, bar_index + 1, lo, border_color = color.new(cDisc, 65), bgcolor = color.new(cDisc, buy ? 84 : 92), text = "Discount · SSL " + f_num(lo) + " · 50% " + f_num(eq), text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom))
@@ -2208,7 +2246,8 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
             f_tradeLines(trNew, DRAW or not iOldSig, tpWhy)
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
             f_drawFvg(g, buy)
-            f_sigSdp(l1, lz, ltf ? f_bar5(lg.c5.xi, lg.oneBar) : lg.oneBar, ltf ? lg.c5.zeroBar : lg.zeroBar, DRAW, col, isSb ? "SDP" : ltf ? "entry leg " + iLtfTf + "m" : "hunt leg")
+            if ltf or not iShowLegs
+                f_sigSdp(l1, lz, ltf ? f_bar5(lg.c5.xi, lg.oneBar) : lg.oneBar, ltf ? lg.c5.zeroBar : lg.zeroBar, DRAW, col, isSb ? "SDP" : ltf ? "entry leg " + iLtfTf + "m" : "hunt leg")
             string txt = (buy ? "BUY " : "SELL ") + grade + " (" + str.tostring(score) + "/" + str.tostring(maxScore) + ")" + (isSb ? "\nSilver bullet -1/-1.5 (with the move)\n" : "\nReversal at prev. leg zone: hunt + MSS" + ltfTxt + "\n") + "Entry " + f_num(entry) + "\nSL " + f_num(stop) + "\nTP " + f_num(main) + tpWhy + "\nR:R 1:" + str.tostring(rr, "0.0") + "\nDealing range " + f_num(drLo) + " - " + f_num(drHi) + " · 50% " + f_num(drEq) + "\nDaily bias: " + f_dBiasTxt(buy) + "\n" + f_htfTxt(buy, entry) + "\n" + f_dFvgTxt(buy)
             float aB = na(atr14) ? 0.0 : atr14
             string shortTxt = (buy ? "BUY " : "SELL ") + grade + (ltf ? " · " + iLtfTf + "m" : "") + " · R:R 1:" + str.tostring(rr, "0.0") + "\nEntry " + f_num(entry) + (market ? " (mkt)" : "") + "\nSL " + f_num(stop) + "  TP " + f_num(main)
@@ -2558,7 +2597,7 @@ f_upkeep(array<Leg> book) =>
                         if not lg.signaled and lg.endWhy != ""
                             lg.lbs.push(label.new(math.min(bar_index, f_fibEnd(lg)), f_fib(lg, 0.0), "SDP ended: " + lg.endWhy, style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
                         histLegs.push(lg)
-                        while histLegs.size() > iHistN
+                        while histLegs.size() > (iClean ? 1 : iHistN)
                             f_deleteLeg(histLegs.shift())
                     else
                         f_deleteLeg(lg)
@@ -2570,7 +2609,7 @@ f_stepBook(bullLegs)
 f_upkeep(bearLegs)
 f_upkeep(bullLegs)
 
-var table dash = table.new(position.top_right, 2, 12, bgcolor = color.new(color.black, 20), border_color = color.new(color.gray, 60), border_width = 1)
+var table dash = table.new(iDashPos == "Bottom right" ? position.bottom_right : iDashPos == "Bottom left" ? position.bottom_left : iDashPos == "Top left" ? position.top_left : position.top_right, 2, 12, bgcolor = color.new(color.black, 20), border_color = color.new(color.gray, 60), border_width = 1)
 f_row(int r, string k, string v, color col) =>
     table.cell(dash, 0, r, k, text_color = color.silver, text_size = sDash, text_halign = text.align_left)
     table.cell(dash, 1, r, v, text_color = col, text_size = sDash, text_halign = text.align_right)
@@ -2621,4 +2660,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for a hunt on both sides)", color.gray)
 
-// ===== END OF SCRIPT: line 2624 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2663 — if your editor stops before this line, the copy was cut off =====
