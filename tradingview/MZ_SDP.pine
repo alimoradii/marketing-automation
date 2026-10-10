@@ -26,7 +26,7 @@ bool   iFvgDisp = input.bool(true, "Entry FVG only inside the displacement leg",
 bool   iRevDR   = input.bool(true, "Reversal only in discount (buy) / premium (sell) of the move it retraces", group = G_COND, tooltip = "Channel video on dealing range & SDP: if -2..-2.5 is still in premium for a buy (discount for a sell), wait for -3.5..-4.")
 bool   iMOHard  = input.bool(true, "NY Open is a hard rule (no signal on the wrong side)", group = G_COND, tooltip = "Course video 10: below the NY midnight open we look for buys, above it for sells. Off: the signal only gets grade B with a warning.")
 bool   iUseSessLiq = input.bool(true, "Session highs/lows (Asia/London/NY) are liquidity", group = G_COND)
-bool   iDR      = input.bool(true, "Dealing range: buy in discount / sell in premium, fake MSS = turtle soup", group = G_COND, tooltip = "ICT dealing range of each setup, between the swing that took buy-side liquidity (BSL) and the one that took sell-side liquidity (SSL). Zone reversal: fib 1 of the SDP (the hunt) to the zone extreme. Hunt setup: the hunt to the last opposite stop hunt beyond it (else its fib 0). A higher high / lower low after the MSS widens it. Buy only below its 50% (discount), sell only above (premium); the entry FVG must be on that side too.")
+bool   iDR      = input.bool(true, "Dealing range: buy in discount / sell in premium, fake MSS = turtle soup", group = G_COND, tooltip = "ICT dealing range between the swing that took buy-side liquidity (BSL) and the one that took sell-side liquidity (SSL) - by default the one drawn on the chart (group Dealing range). Buy only below its 50% (discount), sell only above (premium); the entry FVG must be on that side too.")
 bool   iDisp    = input.bool(true, "Require displacement after the MSS", inline = "d", group = G_COND)
 float  iDispAtr = input.float(1.0, "candle >= ATR x", minval = 0.1, step = 0.1, inline = "d", group = G_COND)
 bool   iPD       = input.bool(true, "FVG in discount (buy) / premium (sell)", group = G_COND)
@@ -102,7 +102,11 @@ int    iValidMin = input.int(120, "Limit order valid (min) — not in notes", gr
 
 const string G_D = "📏 Dealing range (MZ ICT knowledge base)"
 bool   iShowDR   = input.bool(true, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
-bool   iShowLDR  = input.bool(true, "Draw the live dealing range (last BSL hunt ↔ last SSL hunt)", group = G_D, tooltip = "The dealing range the market is in now: from the last swing that took buy-side liquidity (top) to the last swing that took sell-side liquidity (bottom) - the stop-hunt legs the indicator tracks. Price trading past it widens it; a new stop hunt on either side starts a new range (older ones kept as faint lines, see the next setting). Premium above the 50%, discount below. Drawing only: each signal is checked against its own setup's dealing range.")
+const string DRL_ANY   = "Any swing high / low (same timeframe)"
+const string DRU_CHART = "Dealing range on the chart (BSL ↔ SSL)"
+string iDrLiq    = input.string("Session / day / week + equal highs / lows", "Liquidity that makes the dealing range", options = ["Session / day / week + equal highs / lows", DRL_ANY], group = G_D, tooltip = "Notes (ICT basics): the dealing range forms when liquidity on both sides, sell side and buy side, has been taken. Its top is the last swing that took buy-side liquidity, its bottom the last swing that took sell-side liquidity. Session / day / week: the important liquidity of the notes (previous session, day and week highs / lows), equal highs / lows and older swings that themselves took such liquidity. Any swing: every older swing high / low of this timeframe counts as buy-side / sell-side liquidity (more, smaller ranges).")
+string iDrUse    = input.string(DRU_CHART, "Buy in discount / sell in premium of", options = [DRU_CHART, "The setup's own range"], group = G_D, tooltip = "Which dealing range the signals, the entry FVG and the targets use. Chart: the BSL ↔ SSL range drawn on the chart, as it is when the setup forms. Setup's own range: zone reversal = SDP fib 1 to the zone extreme, hunt setup = the hunt to the last opposite stop hunt.")
+bool   iShowLDR  = input.bool(true, "Draw the dealing range (last BSL taken ↔ last SSL taken)", group = G_D, tooltip = "Top: the last swing that took buy-side liquidity, bottom: the last swing that took sell-side liquidity (see the setting above); the labels name the liquidity that was taken. Price trading past it widens it; a new liquidity grab on either side starts a new range (older ones kept as faint lines, see the next setting). Premium above the 50%, discount below.")
 int    iLdrN     = input.int(1, "…keep the last N ranges", minval = 1, maxval = 10, group = G_D)
 string iLdrFill  = input.string("Right of price", "…premium / discount colours", options = ["Right of price", "Whole range"], group = G_D, tooltip = "Right of price: the range is drawn with lines (BSL top, 50%, SSL bottom) and the green / red colours only in a band to the right of the last candle, so the candles stay readable. Whole range: coloured boxes over the whole range.")
 color  cDisc     = input.color(#4caf50, "Discount", inline = "drc", group = G_D)
@@ -320,6 +324,16 @@ type Trade
     array<line>  lns
     array<label> lls
     array<box>   bxs
+
+// ICT dealing range: last swing that took buy-side liquidity (top) and last swing that took sell-side liquidity (bottom)
+type DRng
+    float  hi
+    int    hiB = -1
+    string hiWhy = ""
+    float  lo
+    int    loB = -1
+    string loWhy = ""
+    bool   isNew = false
 
 type Stats
     int   signals = 0
@@ -873,6 +887,10 @@ for sw in sweptNow
 while sweeps.size() > 0 and sweeps.first().bar < bar_index - 10
     sweeps.shift()
 
+var DRng dr = DRng.new()
+bool DR_CHART = iDrUse == DRU_CHART
+f_drReady() => not na(dr.hi) and not na(dr.lo) and dr.hi > dr.lo
+
 f_inter(array<int> ib, array<float> ip, int b, float p) =>
     bool dup = false
     int n = ib.size()
@@ -951,6 +969,22 @@ f_onSwing(int i, float price, bool isHigh) =>
                 names := names == "" ? sw.name : names + "," + sw.name
             ext := ext or sw.kind != "swing"
             key := na(key) ? sw.price : isHigh ? math.max(key, sw.price) : math.min(key, sw.price)
+    string drWhy = ""
+    for sw in sweeps
+        bool counts = iDrLiq == DRL_ANY or sw.kind != "swing" or str.startswith(sw.name, "Equal") or str.startswith(sw.name, "Hunt")
+        if sw.bsl == isHigh and sw.bar >= i - 3 and sw.bar <= i and counts and not str.contains(drWhy, sw.name)
+            drWhy := drWhy == "" ? sw.name : drWhy + ", " + sw.name
+    if drWhy != ""
+        if isHigh and (na(dr.hi) or price != dr.hi or i != dr.hiB)
+            dr.hi := price
+            dr.hiB := i
+            dr.hiWhy := drWhy
+            dr.isNew := true
+        else if not isHigh and (na(dr.lo) or price != dr.lo or i != dr.loB)
+            dr.lo := price
+            dr.loB := i
+            dr.loWhy := drWhy
+            dr.isNew := true
     if names != ""
         [zero, zeroB] = f_huntOrigin(isHigh ? slB : shB, isHigh ? slP : shP, i, isHigh)
         Level own = levels.last()
@@ -1051,12 +1085,6 @@ var array<bool>  zrBear = array.new<bool>()
 var array<float> zrOne  = array.new<float>()
 var array<float> zrZero = array.new<float>()
 var array<int>   zrBar  = array.new<int>()
-// live dealing range of the market: last swing that took BSL (top) and last swing that took SSL (bottom)
-var float lDrHi  = na
-var int   lDrHiB = -1
-var float lDrLo  = na
-var int   lDrLoB = -1
-var bool  lDrNew = false
 f_zoneHit(int k, bool newBear, float one, int oneBar) =>
     bool ok = false
     int ob = zrBar.get(k)
@@ -1208,21 +1236,6 @@ if hunts.size() > 0
                 zrOne.push(hu.one)
                 zrZero.push(hu.zero)
                 zrBar.push(hu.bar)
-                // its side of the live dealing range: the hunt, or a further high / low printed before it was confirmed
-                float nX = hu.one
-                int nXB = hu.bar
-                for b = hu.bar + 1 to bar_index
-                    if hu.bear ? high[bar_index - b] > nX : low[bar_index - b] < nX
-                        nX := hu.bear ? high[bar_index - b] : low[bar_index - b]
-                        nXB := b
-                if hu.bear and (nX != lDrHi or nXB != lDrHiB)
-                    lDrHi := nX
-                    lDrHiB := nXB
-                    lDrNew := true
-                else if not hu.bear and (nX != lDrLo or nXB != lDrLoB)
-                    lDrLo := nX
-                    lDrLoB := nXB
-                    lDrNew := true
                 if zrBar.size() > 60
                     zrBear.shift()
                     zrOne.shift()
@@ -1284,21 +1297,23 @@ f_hideBox(box b) =>
     box.set_border_color(b, color.new(color.black, 100))
     box.set_text(b, "")
     b
-if not na(lDrHi) and high > lDrHi
-    lDrHi := high
-    lDrHiB := bar_index
-if not na(lDrLo) and low < lDrLo
-    lDrLo := low
-    lDrLoB := bar_index
-if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
-    float lEq = (lDrHi + lDrLo) / 2
+if not na(dr.hi) and high > dr.hi  // price trading past the range takes that liquidity too: the range widens
+    dr.hi := high
+    dr.hiB := bar_index
+    dr.hiWhy := "price above the range"
+if not na(dr.lo) and low < dr.lo
+    dr.lo := low
+    dr.loB := bar_index
+    dr.loWhy := "price below the range"
+if iShowLDR and DRAW and f_drReady()
+    float lEq = (dr.hi + dr.lo) / 2
     bool whole = iLdrFill == "Whole range"
-    int lx1 = math.max(0, bar_index - 4500, math.min(lDrHiB, lDrLoB))
+    int lx1 = math.max(0, bar_index - 4500, math.min(dr.hiB, dr.loB))
     int lx2 = bar_index + 25
     int bx1 = whole ? lx1 : bar_index + 1
-    string tP = "Premium · BSL " + f_num(lDrHi)
-    string tD = "Discount · SSL " + f_num(lDrLo)
-    if lDrNew or ldrP.size() == 0
+    string tP = "Premium · BSL " + f_num(dr.hi) + (dr.hiWhy == "" ? "" : " (" + dr.hiWhy + ")")
+    string tD = "Discount · SSL " + f_num(dr.lo) + (dr.loWhy == "" ? "" : " (" + dr.loWhy + ")")
+    if dr.isNew or ldrP.size() == 0
         if ldrP.size() > 0  // the previous range stops here as faint lines; its colour band goes (it would sit over later candles)
             for ln in array.from(ldrT.last(), ldrB.last(), ldrE.last())
                 line.set_x2(ln, bar_index)
@@ -1313,12 +1328,12 @@ if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
             else
                 f_hideBox(ldrP.last())
                 f_hideBox(ldrD.last())
-        ldrT.push(line.new(lx1, lDrHi, lx2, lDrHi, color = color.new(cPrem, 30), style = line.style_dotted))
-        ldrB.push(line.new(lx1, lDrLo, lx2, lDrLo, color = color.new(cDisc, 30), style = line.style_dotted))
+        ldrT.push(line.new(lx1, dr.hi, lx2, dr.hi, color = color.new(cPrem, 30), style = line.style_dotted))
+        ldrB.push(line.new(lx1, dr.lo, lx2, dr.lo, color = color.new(cDisc, 30), style = line.style_dotted))
         ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 30), style = line.style_dashed))
         ldrL.push(label.new(lx2, lEq, "50% " + f_num(lEq), style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
-        ldrP.push(box.new(bx1, lDrHi, lx2, lEq, border_color = color.new(cPrem, 100), bgcolor = color.new(cPrem, whole ? 90 : 80), text = tP, text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top, text_wrap = text.wrap_auto))
-        ldrD.push(box.new(bx1, lEq, lx2, lDrLo, border_color = color.new(cDisc, 100), bgcolor = color.new(cDisc, whole ? 90 : 80), text = tD, text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom, text_wrap = text.wrap_auto))
+        ldrP.push(box.new(bx1, dr.hi, lx2, lEq, border_color = color.new(cPrem, 100), bgcolor = color.new(cPrem, whole ? 90 : 80), text = tP, text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top, text_wrap = text.wrap_auto))
+        ldrD.push(box.new(bx1, lEq, lx2, dr.lo, border_color = color.new(cDisc, 100), bgcolor = color.new(cDisc, whole ? 90 : 80), text = tD, text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom, text_wrap = text.wrap_auto))
         while ldrP.size() > iLdrN
             line.delete(ldrT.shift())
             line.delete(ldrB.shift())
@@ -1327,21 +1342,21 @@ if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
             box.delete(ldrP.shift())
             box.delete(ldrD.shift())
     else
-        line.set_xy1(ldrT.last(), lx1, lDrHi)
-        line.set_xy2(ldrT.last(), lx2, lDrHi)
-        line.set_xy1(ldrB.last(), lx1, lDrLo)
-        line.set_xy2(ldrB.last(), lx2, lDrLo)
+        line.set_xy1(ldrT.last(), lx1, dr.hi)
+        line.set_xy2(ldrT.last(), lx2, dr.hi)
+        line.set_xy1(ldrB.last(), lx1, dr.lo)
+        line.set_xy2(ldrB.last(), lx2, dr.lo)
         line.set_xy1(ldrE.last(), lx1, lEq)
         line.set_xy2(ldrE.last(), lx2, lEq)
         label.set_xy(ldrL.last(), lx2, lEq)
         label.set_text(ldrL.last(), "50% " + f_num(lEq))
-        box.set_lefttop(ldrP.last(), bx1, lDrHi)
+        box.set_lefttop(ldrP.last(), bx1, dr.hi)
         box.set_rightbottom(ldrP.last(), lx2, lEq)
         box.set_text(ldrP.last(), tP)
         box.set_lefttop(ldrD.last(), bx1, lEq)
-        box.set_rightbottom(ldrD.last(), lx2, lDrLo)
+        box.set_rightbottom(ldrD.last(), lx2, dr.lo)
         box.set_text(ldrD.last(), tD)
-lDrNew := false
+dr.isNew := false
 
 f_dBiasTxt(bool buy) =>
     string b = dBias == 1 ? "Bullish" : dBias == -1 ? "Bearish" : "Neutral"
@@ -2114,6 +2129,12 @@ f_stepLeg(Leg lg) =>
         float drLo = bear ? lg.extreme : (farOut ? far : lg.drOne)
         int drLoB = bear ? lg.extremeBar : (farOut ? farBar : oneB)
         float drEq = (drHi + drLo) / 2
+        if DR_CHART and f_drReady()  // the dealing range on the chart (BSL ↔ SSL) as it is now
+            drHi := dr.hi
+            drHiB := dr.hiB
+            drLo := dr.lo
+            drLoB := dr.loB
+            drEq := (drHi + drLo) / 2
         float eq = (lg.extreme + far) / 2
         if useDR
             eq := bear ? math.min(eq, drEq) : math.max(eq, drEq)
@@ -2370,6 +2391,12 @@ f_stepCont(Leg lg) =>
         float drLo = buy ? hl : (farOut ? farC : base)
         int drLoB = buy ? hlB : (farOut ? farCBar : baseB)
         float drEq = (drHi + drLo) / 2
+        if DR_CHART and f_drReady()  // the dealing range on the chart (BSL ↔ SSL) as it is now
+            drHi := dr.hi
+            drHiB := dr.hiB
+            drLo := dr.lo
+            drLoB := dr.loB
+            drEq := (drHi + drLo) / 2
         float eqD = useDR ? (buy ? math.min(eq, drEq) : math.max(eq, drEq)) : eq
         Gap best = lg.cMssBar == bar_index ? f_mssMkt(buy, eqD) : na
         int gs = na(best) ? gaps.size() : 0
@@ -2479,6 +2506,12 @@ f_stepSb(Leg lg) =>
                 float drLo = buy ? lg.sbExt : rTop
                 int drLoB = buy ? lg.sbExtBar : rTopB
                 float drEq = (drHi + drLo) / 2
+                if DR_CHART and f_drReady()  // the dealing range on the chart (BSL ↔ SSL) as it is now
+                    drHi := dr.hi
+                    drHiB := dr.hiB
+                    drLo := dr.lo
+                    drLoB := dr.loB
+                    drEq := (drHi + drLo) / 2
                 Gap best = na
                 int gs = gaps.size()
                 if gs > 0
@@ -2675,10 +2708,10 @@ if iShowDash and barstate.islast
         f_row(10, (trLast.sell ? "SELL " : "BUY ") + (trLast.state == 0 ? "pending" : "open"), trLast.warn == "" ? "✅ حجم عادی" : wFa, trLast.warn == "" ? cBuy : color.orange)
     else
         f_row(10, "Size", "— (no open signal)", color.gray)
-    if not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
-        float drPct = 100 * (close - lDrLo) / (lDrHi - lDrLo)
-        f_row(11, "Dealing range", f_num(lDrLo) + " - " + f_num(lDrHi) + " · " + (drPct < 50 ? "discount " : "premium ") + str.tostring(drPct, "0") + "%", drPct < 50 ? cBuy : cSell)
+    if f_drReady()
+        float drPct = 100 * (close - dr.lo) / (dr.hi - dr.lo)
+        f_row(11, "Dealing range", f_num(dr.lo) + " - " + f_num(dr.hi) + " · " + (drPct < 50 ? "discount " : "premium ") + str.tostring(drPct, "0") + "%", drPct < 50 ? cBuy : cSell)
     else
-        f_row(11, "Dealing range", "— (waiting for a hunt on both sides)", color.gray)
+        f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2684 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2717 — if your editor stops before this line, the copy was cut off =====
