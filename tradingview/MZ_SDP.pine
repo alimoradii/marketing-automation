@@ -102,6 +102,8 @@ int    iValidMin = input.int(120, "Limit order valid (min) — not in notes", gr
 
 const string G_D = "📏 Dealing range (MZ ICT knowledge base)"
 bool   iShowDR   = input.bool(true, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
+bool   iShowLDR  = input.bool(true, "Draw the live dealing range (last BSL hunt ↔ last SSL hunt)", group = G_D, tooltip = "The dealing range the market is in now: from the last swing that took buy-side liquidity (top) to the last swing that took sell-side liquidity (bottom) - the stop-hunt legs the indicator tracks. Price trading past it widens it; a new stop hunt on either side starts a new range and the old one stays in grey. Premium above the 50%, discount below. Drawing only: each signal is checked against its own setup's dealing range.")
+int    iLdrN     = input.int(3, "…keep the last N ranges", minval = 1, maxval = 10, group = G_D)
 
 const string G_R = "💰 Targets & management"
 const string TGT_DR = "Dealing range + SDP zones"
@@ -1044,6 +1046,12 @@ var array<bool>  zrBear = array.new<bool>()
 var array<float> zrOne  = array.new<float>()
 var array<float> zrZero = array.new<float>()
 var array<int>   zrBar  = array.new<int>()
+// live dealing range of the market: last swing that took BSL (top) and last swing that took SSL (bottom)
+var float lDrHi  = na
+var int   lDrHiB = -1
+var float lDrLo  = na
+var int   lDrLoB = -1
+var bool  lDrNew = false
 f_zoneHit(int k, bool newBear, float one, int oneBar) =>
     bool ok = false
     int ob = zrBar.get(k)
@@ -1195,6 +1203,13 @@ if hunts.size() > 0
                 zrOne.push(hu.one)
                 zrZero.push(hu.zero)
                 zrBar.push(hu.bar)
+                if hu.bear
+                    lDrHi := hu.one
+                    lDrHiB := hu.bar
+                else
+                    lDrLo := hu.one
+                    lDrLoB := hu.bar
+                lDrNew := true
                 if zrBar.size() > 60
                     zrBear.shift()
                     zrOne.shift()
@@ -1237,6 +1252,61 @@ if fsq.size() > 0
                 f_drawLeg(lg)
             book.push(lg)
     fsq.clear()
+
+// live dealing range: widened when price trades past it; a new stop hunt on either side starts a new one (the old one stays, grey)
+var array<box>   ldrP = array.new<box>()
+var array<box>   ldrD = array.new<box>()
+var array<line>  ldrE = array.new<line>()
+var array<label> ldrL = array.new<label>()
+f_greyBox(box b) =>
+    box.set_bgcolor(b, color.new(color.gray, 94))
+    box.set_border_color(b, color.new(color.gray, 75))
+    box.set_text_color(b, color.new(color.gray, 40))
+    b
+if not na(lDrHi) and not na(lDrLo)
+    if high > lDrHi
+        lDrHi := high
+        lDrHiB := bar_index
+    if low < lDrLo
+        lDrLo := low
+        lDrLoB := bar_index
+if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
+    float lEq = (lDrHi + lDrLo) / 2
+    int lx1 = math.max(0, bar_index - 4500, math.min(lDrHiB, lDrLoB))
+    int lx2 = bar_index + 3
+    string tP = "Dealing range · Premium · BSL " + f_num(lDrHi)
+    string tD = "Discount · SSL " + f_num(lDrLo)
+    if lDrNew or ldrP.size() == 0
+        if ldrP.size() > 0
+            box.set_right(ldrP.last(), bar_index)
+            box.set_right(ldrD.last(), bar_index)
+            f_greyBox(ldrP.last())
+            f_greyBox(ldrD.last())
+            line.set_x2(ldrE.last(), bar_index)
+            line.set_color(ldrE.last(), color.new(color.gray, 50))
+            label.set_x(ldrL.last(), bar_index)
+            label.set_textcolor(ldrL.last(), color.new(color.gray, 40))
+        ldrP.push(box.new(lx1, lDrHi, lx2, lEq, border_color = color.new(cSell, 55), border_style = line.style_dashed, bgcolor = color.new(cSell, 92), text = tP, text_size = size.tiny, text_color = cSell, text_halign = text.align_left, text_valign = text.align_top))
+        ldrD.push(box.new(lx1, lEq, lx2, lDrLo, border_color = color.new(cBuy, 55), border_style = line.style_dashed, bgcolor = color.new(cBuy, 92), text = tD, text_size = size.tiny, text_color = cBuy, text_halign = text.align_left, text_valign = text.align_bottom))
+        ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 20), style = line.style_dashed))
+        ldrL.push(label.new(lx2, lEq, "50% " + f_num(lEq), style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
+        while ldrP.size() > iLdrN
+            box.delete(ldrP.shift())
+            box.delete(ldrD.shift())
+            line.delete(ldrE.shift())
+            label.delete(ldrL.shift())
+    else
+        box.set_lefttop(ldrP.last(), lx1, lDrHi)
+        box.set_rightbottom(ldrP.last(), lx2, lEq)
+        box.set_text(ldrP.last(), tP)
+        box.set_lefttop(ldrD.last(), lx1, lEq)
+        box.set_rightbottom(ldrD.last(), lx2, lDrLo)
+        box.set_text(ldrD.last(), tD)
+        line.set_xy1(ldrE.last(), lx1, lEq)
+        line.set_xy2(ldrE.last(), lx2, lEq)
+        label.set_xy(ldrL.last(), lx2, lEq)
+        label.set_text(ldrL.last(), "50% " + f_num(lEq))
+lDrNew := false
 
 f_dBiasTxt(bool buy) =>
     string b = dBias == 1 ? "Bullish" : dBias == -1 ? "Bearish" : "Neutral"
@@ -2493,7 +2563,7 @@ f_stepBook(bullLegs)
 f_upkeep(bearLegs)
 f_upkeep(bullLegs)
 
-var table dash = table.new(position.top_right, 2, 11, bgcolor = color.new(color.black, 20), border_color = color.new(color.gray, 60), border_width = 1)
+var table dash = table.new(position.top_right, 2, 12, bgcolor = color.new(color.black, 20), border_color = color.new(color.gray, 60), border_width = 1)
 f_row(int r, string k, string v, color col) =>
     table.cell(dash, 0, r, k, text_color = color.silver, text_size = sDash, text_halign = text.align_left)
     table.cell(dash, 1, r, v, text_color = col, text_size = sDash, text_halign = text.align_right)
@@ -2538,5 +2608,10 @@ if iShowDash and barstate.islast
         f_row(10, (trLast.sell ? "SELL " : "BUY ") + (trLast.state == 0 ? "pending" : "open"), trLast.warn == "" ? "✅ حجم عادی" : wFa, trLast.warn == "" ? cBuy : color.orange)
     else
         f_row(10, "Size", "— (no open signal)", color.gray)
+    if not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
+        float drPct = 100 * (close - lDrLo) / (lDrHi - lDrLo)
+        f_row(11, "Dealing range", f_num(lDrLo) + " - " + f_num(lDrHi) + " · " + (drPct < 50 ? "discount " : "premium ") + str.tostring(drPct, "0") + "%", drPct < 50 ? cBuy : cSell)
+    else
+        f_row(11, "Dealing range", "— (waiting for a hunt on both sides)", color.gray)
 
-// ===== END OF SCRIPT: line 2542 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2617 — if your editor stops before this line, the copy was cut off =====
