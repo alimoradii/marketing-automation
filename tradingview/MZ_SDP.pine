@@ -1177,6 +1177,7 @@ f_oppHunt(Leg lg) =>
 f_drTarget(bool buy, float zero, float one, float drEq, float entry) =>
     float t = na
     string why = ""
+    string tag = ""
     string side = buy ? "premium" : "discount"
     for z = 0 to 2
         if na(t)
@@ -1190,33 +1191,46 @@ f_drTarget(bool buy, float zero, float one, float drEq, float entry) =>
             if (buy ? zLo >= drEq : zHi <= drEq) and (buy ? pa > entry : pa < entry)
                 t := pa
                 why := "-" + str.tostring(a) + ": zone " + zt + " in " + side
+                tag := "-" + str.tostring(a)
             else if zLo < drEq and zHi > drEq and (buy ? drEq > entry : drEq < entry)
                 t := drEq
                 why := "50% of the dealing range: zone " + zt + " across it"
+                tag := "50%"
     if na(t)
         t := drEq
         why := "50% of the dealing range: no SDP zone in " + side
-    [t, why]
+        tag := "50%"
+    [t, why, tag]
 
 // main target with the TP buffer and the R cap; legacy = target of the other modes
 f_mainTarget(bool buy, float entry, float risk, float zero, float one, float drEq, float legacy, string legacyWhy) =>
     float cap = buy ? entry + iMaxRR * risk : entry - iMaxRR * risk
     float t = na
     string why = ""
+    string tag = ""
+    string capTxt = str.tostring(iMaxRR) + "R cap"
     if iTgtMode == TGT_DR and not na(drEq)
-        [t0, w0] = f_drTarget(buy, zero, one, drEq, entry)
+        [t0, w0, g0] = f_drTarget(buy, zero, one, drEq, entry)
+        t := t0
+        why := " (" + w0 + ")"
+        tag := g0
         if buy ? t0 > cap : t0 < cap
             t := buy ? math.max(cap, drEq) : math.min(cap, drEq)
-            why := " (" + (t == cap ? str.tostring(iMaxRR) + "R cap" : "50% of the dealing range") + "; " + w0 + " = " + f_num(t0) + ")"
-        else
-            t := t0
-            why := " (" + w0 + ")"
+            if t == cap
+                why := " (" + capTxt + "; " + w0 + " at " + f_num(t0) + ")"
+                tag := capTxt
+            else if t0 != drEq
+                why := " (50% of the dealing range: " + w0 + " at " + f_num(t0) + " is past the " + capTxt + ")"
+                tag := "50%"
         t := buy ? t - iTpBuf * PIP : t + iTpBuf * PIP
     else
+        string lTag = str.startswith(legacyWhy, "fib 1") ? "fib 1" : legacyWhy
         t := buy ? legacy - iTpBuf * PIP : legacy + iTpBuf * PIP
-        why := (buy ? t > cap : t < cap) ? " (" + str.tostring(iMaxRR) + "R cap; " + legacyWhy + " = " + f_num(t) + ")" : " (" + legacyWhy + ")"
+        bool capped = buy ? t > cap : t < cap
+        why := capped ? " (" + capTxt + "; " + legacyWhy + " at " + f_num(t) + ")" : " (" + legacyWhy + ")"
+        tag := capped ? capTxt : lTag
         t := buy ? math.min(t, cap) : math.max(t, cap)
-    [t, why]
+    [t, why, tag]
 
 f_revEq(bool legBear, float one, int oneBar) =>
     float eq = na
@@ -1325,14 +1339,18 @@ f_hideBox(box b) =>
     box.set_border_color(b, color.new(color.black, 100))
     box.set_text(b, "")
     b
-if not na(dr.hi) and high > dr.hi  // price trading past the range takes that liquidity too: the range widens
+if not na(dr.hi) and high > dr.hi  // price past the range takes the buy-side liquidity of its high: the range widens, the turn gets it
+    dr.pHiBar := dr.pHiBar < 0 ? bar_index : dr.pHiBar
+    dr.pHiWhy := f_addWhy(dr.pHiWhy, "range high")
     dr.hi := high
     dr.hiB := bar_index
-    dr.hiWhy := "price above the range"
+    dr.hiWhy := "taking the range high"
 if not na(dr.lo) and low < dr.lo
+    dr.pLoBar := dr.pLoBar < 0 ? bar_index : dr.pLoBar
+    dr.pLoWhy := f_addWhy(dr.pLoWhy, "range low")
     dr.lo := low
     dr.loB := bar_index
-    dr.loWhy := "price below the range"
+    dr.loWhy := "taking the range low"
 if iShowLDR and DRAW and f_drReady()
     float lEq = (dr.hi + dr.lo) / 2
     bool whole = iLdrFill == "Whole range"
@@ -1927,11 +1945,13 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
     float partial = na
     float rr = 0.0
     string tpWhy = ""
+    string tpTag = ""
     bool extMode = iTgtMode == "External liquidity"
     if rej == ""
-        [m0, w0] = f_mainTarget(buy, entry, risk, tz, lg.extreme, drEq, extMode ? lg.drOne : buy ? tz + iTgt * unit : tz - iTgt * unit, extMode ? "fib 1 of the hunt leg" : "-" + str.tostring(iTgt))
+        [m0, w0, g0] = f_mainTarget(buy, entry, risk, tz, lg.extreme, drEq, extMode ? lg.drOne : buy ? tz + iTgt * unit : tz - iTgt * unit, extMode ? "fib 1 of the hunt leg" : "-" + str.tostring(iTgt))
         main := m0
         tpWhy := w0
+        tpTag := g0
         if buy ? main <= entry : main >= entry
             rej := "target not beyond entry"
         partial := extMode ? drEq : buy ? tz + iPart * unit : tz - iPart * unit
@@ -2002,7 +2022,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
         if iShowTrade
             color col = buy ? cBuy : cSell
             int x2 = bar_index + iLineBars
-            f_tradeLines(trNew, DRAW or not iOldSig, tpWhy)
+            f_tradeLines(trNew, DRAW or not iOldSig, tpTag == "" ? "" : " (" + tpTag + ")")
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
             f_drawFvg(g, buy)
             if not na(tz)
@@ -2223,15 +2243,17 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
     partial := buy ? partial - iTpBuf * PIP : partial + iTpBuf * PIP
     float rr = 0.0
     string tpWhy = ""
+    string tpTag = ""
     if risk <= 0
         rej := "invalid risk"
     else if iUseMinStop and risk < iMinStop * PIP
         rej := "stop too tight (" + str.tostring(risk / PIP, "0.0") + " pips)"
     if rej == ""
         // silver bullet keeps its -2 (the move goes on); the hunt setup takes the first SDP zone of the hunt leg in premium / discount
-        [m0, w0] = f_mainTarget(buy, entry, risk, lz, l1, isSb ? na : drEq, na(mainPx) ? lz - iTgt * (l1 - lz) : mainPx, "-" + str.tostring(isSb ? iZ2a : iTgt))
+        [m0, w0, g0] = f_mainTarget(buy, entry, risk, lz, l1, isSb ? na : drEq, na(mainPx) ? lz - iTgt * (l1 - lz) : mainPx, "-" + str.tostring(isSb ? iZ2a : iTgt))
         main := m0
         tpWhy := w0
+        tpTag := g0
         if buy ? main <= entry : main >= entry
             rej := "target not beyond entry"
         if not (buy ? (entry < partial and partial < main) : (main < partial and partial < entry))
@@ -2298,7 +2320,7 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         if iShowTrade
             color col = buy ? cBuy : cSell
             int x2 = bar_index + iLineBars
-            f_tradeLines(trNew, DRAW or not iOldSig, tpWhy)
+            f_tradeLines(trNew, DRAW or not iOldSig, tpTag == "" ? "" : " (" + tpTag + ")")
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
             f_drawFvg(g, buy)
             if iClean
@@ -2742,4 +2764,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2745 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2767 — if your editor stops before this line, the copy was cut off =====
