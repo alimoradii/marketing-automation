@@ -2710,10 +2710,12 @@ f_upkeep(array<Leg> book) =>
                 book.remove(k)
     book.size()
 
-f_stepBook(bearLegs)
-f_stepBook(bullLegs)
-f_upkeep(bearLegs)
-f_upkeep(bullLegs)
+// one call site each, looped over both sides: TradingView inlines a function at every call, and these two are most of the script
+// (called twice they went past the 100K compiled-token limit); they keep no state of their own, so the loop changes nothing
+for side = 0 to 1
+    f_stepBook(side == 0 ? bearLegs : bullLegs)
+for side = 0 to 1
+    f_upkeep(side == 0 ? bearLegs : bullLegs)
 if iClean and histLegs.size() > 0  // Clean view: a finished leg stays only while its trade is open or it gave the newest signal
     for i = histLegs.size() - 1 to 0
         Leg h = histLegs.get(i)
@@ -2772,4 +2774,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2775 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2777 — if your editor stops before this line, the copy was cut off =====
