@@ -102,8 +102,10 @@ int    iValidMin = input.int(120, "Limit order valid (min) — not in notes", gr
 
 const string G_D = "📏 Dealing range (MZ ICT knowledge base)"
 bool   iShowDR   = input.bool(true, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
-bool   iShowLDR  = input.bool(true, "Draw the live dealing range (last BSL hunt ↔ last SSL hunt)", group = G_D, tooltip = "The dealing range the market is in now: from the last swing that took buy-side liquidity (top) to the last swing that took sell-side liquidity (bottom) - the stop-hunt legs the indicator tracks. Price trading past it widens it; a new stop hunt on either side starts a new range and the old one stays in grey. Premium above the 50%, discount below. Drawing only: each signal is checked against its own setup's dealing range.")
+bool   iShowLDR  = input.bool(true, "Draw the live dealing range (last BSL hunt ↔ last SSL hunt)", group = G_D, tooltip = "The dealing range the market is in now: from the last swing that took buy-side liquidity (top) to the last swing that took sell-side liquidity (bottom) - the stop-hunt legs the indicator tracks. Price trading past it widens it; a new stop hunt on either side starts a new range and the old one stays, fainter. Premium above the 50%, discount below. Drawing only: each signal is checked against its own setup's dealing range.")
 int    iLdrN     = input.int(3, "…keep the last N ranges", minval = 1, maxval = 10, group = G_D)
+color  cDisc     = input.color(#4caf50, "Discount", inline = "drc", group = G_D)
+color  cPrem     = input.color(#f23645, "Premium", inline = "drc", group = G_D)
 
 const string G_R = "💰 Targets & management"
 const string TGT_DR = "Dealing range + SDP zones"
@@ -1261,15 +1263,15 @@ if fsq.size() > 0
             book.push(lg)
     fsq.clear()
 
-// live dealing range: widened when price trades past it; a new stop hunt on either side starts a new one (the old one stays, grey)
+// live dealing range: widened when price trades past it; a new stop hunt on either side starts a new one (the old one stays, fainter)
 var array<box>   ldrP = array.new<box>()
 var array<box>   ldrD = array.new<box>()
 var array<line>  ldrE = array.new<line>()
 var array<label> ldrL = array.new<label>()
-f_greyBox(box b) =>
-    box.set_bgcolor(b, color.new(color.gray, 94))
-    box.set_border_color(b, color.new(color.gray, 75))
-    box.set_text_color(b, color.new(color.gray, 40))
+f_fadeBox(box b, color c) =>
+    box.set_bgcolor(b, color.new(c, 95))
+    box.set_border_color(b, color.new(c, 80))
+    box.set_text_color(b, color.new(c, 45))
     b
 if not na(lDrHi) and high > lDrHi
     lDrHi := high
@@ -1287,14 +1289,14 @@ if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
         if ldrP.size() > 0
             box.set_right(ldrP.last(), bar_index)
             box.set_right(ldrD.last(), bar_index)
-            f_greyBox(ldrP.last())
-            f_greyBox(ldrD.last())
+            f_fadeBox(ldrP.last(), cPrem)
+            f_fadeBox(ldrD.last(), cDisc)
             line.set_x2(ldrE.last(), bar_index)
             line.set_color(ldrE.last(), color.new(color.gray, 50))
             label.set_x(ldrL.last(), bar_index)
             label.set_textcolor(ldrL.last(), color.new(color.gray, 40))
-        ldrP.push(box.new(lx1, lDrHi, lx2, lEq, border_color = color.new(cSell, 55), border_style = line.style_dashed, bgcolor = color.new(cSell, 92), text = tP, text_size = size.tiny, text_color = cSell, text_halign = text.align_left, text_valign = text.align_top))
-        ldrD.push(box.new(lx1, lEq, lx2, lDrLo, border_color = color.new(cBuy, 55), border_style = line.style_dashed, bgcolor = color.new(cBuy, 92), text = tD, text_size = size.tiny, text_color = cBuy, text_halign = text.align_left, text_valign = text.align_bottom))
+        ldrP.push(box.new(lx1, lDrHi, lx2, lEq, border_color = color.new(cPrem, 55), border_style = line.style_dashed, bgcolor = color.new(cPrem, 88), text = tP, text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top))
+        ldrD.push(box.new(lx1, lEq, lx2, lDrLo, border_color = color.new(cDisc, 55), border_style = line.style_dashed, bgcolor = color.new(cDisc, 88), text = tD, text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom))
         ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 20), style = line.style_dashed))
         ldrL.push(label.new(lx2, lEq, "50% " + f_num(lEq), style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
         while ldrP.size() > iLdrN
@@ -1425,8 +1427,8 @@ f_drawDR(Trade tr, float hi, int hiB, float lo, int loB, bool buy) =>
     if iShowDR and DRAW and not na(hi) and not na(lo) and hi > lo
         int x1 = math.max(0, bar_index - 1500, hiB >= 0 and loB >= 0 ? math.min(hiB, loB) : math.max(hiB, loB))
         float eq = (hi + lo) / 2
-        tr.bxs.push(box.new(x1, hi, bar_index + 1, eq, border_color = color.new(cSell, 65), bgcolor = color.new(cSell, buy ? 93 : 85), text = "Premium · BSL " + f_num(hi), text_size = size.tiny, text_color = cSell, text_halign = text.align_left, text_valign = text.align_top))
-        tr.bxs.push(box.new(x1, eq, bar_index + 1, lo, border_color = color.new(cBuy, 65), bgcolor = color.new(cBuy, buy ? 85 : 93), text = "Discount · SSL " + f_num(lo) + " · 50% " + f_num(eq), text_size = size.tiny, text_color = cBuy, text_halign = text.align_left, text_valign = text.align_bottom))
+        tr.bxs.push(box.new(x1, hi, bar_index + 1, eq, border_color = color.new(cPrem, 65), bgcolor = color.new(cPrem, buy ? 92 : 84), text = "Premium · BSL " + f_num(hi), text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top))
+        tr.bxs.push(box.new(x1, eq, bar_index + 1, lo, border_color = color.new(cDisc, 65), bgcolor = color.new(cDisc, buy ? 84 : 92), text = "Discount · SSL " + f_num(lo) + " · 50% " + f_num(eq), text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom))
     tr.bxs.size()
 f_extendLines(Trade tr) =>
     if not na(tr.lns)
@@ -1454,13 +1456,11 @@ f_endLines(Trade tr, string ev) =>
             else
                 label.set_textcolor(lb, color.new(color.gray, 30))
         if not na(tr.bxs)
-            for bx in tr.bxs
+            for [i, bx] in tr.bxs
                 if drop
                     box.delete(bx)
                 else
-                    box.set_bgcolor(bx, color.new(color.gray, 92))
-                    box.set_border_color(bx, color.new(color.gray, 70))
-                    box.set_text_color(bx, color.new(color.gray, 30))
+                    f_fadeBox(bx, i == 0 ? cPrem : cDisc)  // premium box first, discount second
     if not na(tr.lns) and ev == "filled" and tr.lns.size() > 0
         line.set_y1(tr.lns.get(0), tr.entry)
         line.set_y2(tr.lns.get(0), tr.entry)
