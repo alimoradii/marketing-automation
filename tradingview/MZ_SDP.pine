@@ -334,6 +334,10 @@ type DRng
     int    loB = -1
     string loWhy = ""
     bool   isNew = false
+    int    pHiBar = -1   // buy-side grab waiting for the swing high that turns there
+    string pHiWhy = ""
+    int    pLoBar = -1
+    string pLoWhy = ""
 
 type Stats
     int   signals = 0
@@ -890,6 +894,17 @@ while sweeps.size() > 0 and sweeps.first().bar < bar_index - 10
 var DRng dr = DRng.new()
 bool DR_CHART = iDrUse == DRU_CHART
 f_drReady() => not na(dr.hi) and not na(dr.lo) and dr.hi > dr.lo
+f_drLiq(Sweep sw) => iDrLiq == DRL_ANY or sw.kind != "swing" or str.startswith(sw.name, "Equal") or str.startswith(sw.name, "Hunt")
+f_addWhy(string w, string nm) => str.contains(w, nm) ? w : w == "" ? nm : w + ", " + nm
+// a grab of buy-side / sell-side liquidity waits for the swing where price turns (the extreme since the grab, see f_onSwing)
+for sw in sweptNow
+    if f_drLiq(sw)
+        if sw.bsl
+            dr.pHiBar := dr.pHiBar < 0 ? sw.bar : dr.pHiBar
+            dr.pHiWhy := f_addWhy(dr.pHiWhy, sw.name)
+        else
+            dr.pLoBar := dr.pLoBar < 0 ? sw.bar : dr.pLoBar
+            dr.pLoWhy := f_addWhy(dr.pLoWhy, sw.name)
 
 f_inter(array<int> ib, array<float> ip, int b, float p) =>
     bool dup = false
@@ -922,7 +937,7 @@ f_onSwing(int i, float price, bool isHigh) =>
             int b1 = sb.get(n - 2)
             f_inter(ib, ip, b1, p1)
             for l in levels
-                if l.kind == "swing" and l.bar == b1 and not str.startswith(l.name, "Equal")
+                if l.kind == "swing" and l.bar == b1 and not str.startswith(l.name, "Equal") and not str.startswith(l.name, "Hunt")
                     l.name := isHigh ? "ITH" : "ITL"
     int gs = gaps.size()
     if gs > 0
@@ -969,22 +984,35 @@ f_onSwing(int i, float price, bool isHigh) =>
                 names := names == "" ? sw.name : names + "," + sw.name
             ext := ext or sw.kind != "swing"
             key := na(key) ? sw.price : isHigh ? math.max(key, sw.price) : math.min(key, sw.price)
-    string drWhy = ""
-    for sw in sweeps
-        bool counts = iDrLiq == DRL_ANY or sw.kind != "swing" or str.startswith(sw.name, "Equal") or str.startswith(sw.name, "Hunt")
-        if sw.bsl == isHigh and sw.bar >= i - 3 and sw.bar <= i and counts and not str.contains(drWhy, sw.name)
-            drWhy := drWhy == "" ? sw.name : drWhy + ", " + sw.name
-    if drWhy != ""
-        if isHigh and (na(dr.hi) or price != dr.hi or i != dr.hiB)
-            dr.hi := price
-            dr.hiB := i
-            dr.hiWhy := drWhy
-            dr.isNew := true
-        else if not isHigh and (na(dr.lo) or price != dr.lo or i != dr.loB)
-            dr.lo := price
-            dr.loB := i
-            dr.loWhy := drWhy
-            dr.isNew := true
+    // dealing range: this swing took the waiting buy-side (sell-side) grab if it is the highest high (lowest low) since it
+    int pB = isHigh ? dr.pHiBar : dr.pLoBar
+    if pB >= 0 and pB <= i
+        bool turn = i - pB <= 300
+        if turn
+            for b = pB to i
+                if isHigh ? high[bar_index - b] > price : low[bar_index - b] < price
+                    turn := false
+                    break
+        if i - pB > 300 or turn
+            string why = isHigh ? dr.pHiWhy : dr.pLoWhy
+            if isHigh
+                if turn
+                    if na(dr.hi) or price != dr.hi or i != dr.hiB
+                        dr.isNew := true
+                    dr.hi := price
+                    dr.hiB := i
+                    dr.hiWhy := why
+                dr.pHiBar := -1
+                dr.pHiWhy := ""
+            else
+                if turn
+                    if na(dr.lo) or price != dr.lo or i != dr.loB
+                        dr.isNew := true
+                    dr.lo := price
+                    dr.loB := i
+                    dr.loWhy := why
+                dr.pLoBar := -1
+                dr.pLoWhy := ""
     if names != ""
         [zero, zeroB] = f_huntOrigin(isHigh ? slB : shB, isHigh ? slP : shP, i, isHigh)
         Level own = levels.last()
@@ -2714,4 +2742,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2717 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2745 — if your editor stops before this line, the copy was cut off =====
