@@ -149,7 +149,7 @@ bool  iShowMss   = input.bool(true, "MSS line (red, like the notes)", group = G_
 bool  iMssDraw   = input.bool(true, "Draw an SDP only after its MSS (price crossed its 0)", tooltip = "Videos (SDP, 07:10): we draw the SDP once we are sure the stop hunt happened - when there is a market structure shift.", group = G_V)
 bool  iFibTv     = input.bool(true, "SDP like the TradingView fib tool (lines only as wide as 0..1, solid, not extended)", group = G_V)
 int   iFibLen    = input.int(20, "Fib line length after fib 1 (bars, 0 = up to price)", minval = 0, group = G_V)
-string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest) + the last leg that traded; only the newest signal keeps its entry-leg SDP. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
+string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest) + the legs of open trades and of the newest signal; only the newest signal keeps its entry-leg SDP; the last 4 MSS. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
 string iTxtSize  = input.string("Normal", "SDP text size", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iSigSize  = input.string("Normal", "Signal text size (box, Entry / SL / TP, markers)", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iNoteSize = input.string("Tiny", "Notes / MSS text size", options = ["Tiny", "Small", "Normal", "Large"], group = G_V)
@@ -330,6 +330,7 @@ type Stats
     int   dayCount = 0
     int   rejected = 0
     int   liveLeg = -1
+    int   lastSig = -1   // leg of the newest signal
     int   noteBarUp = -100
     int   noteSlotUp = 0
     int   noteBarDn = -100
@@ -992,7 +993,7 @@ f_drawMss(int fromBar, float lvl, string txt) =>
         mssLines.push(line.new(t1, lvl, math.max(t1, tm - gap), lvl, xloc = xloc.bar_time, color = color.red, width = 2))
         mssLines.push(line.new(math.min(t2, tm + gap), lvl, t2, lvl, xloc = xloc.bar_time, color = color.red, width = 2))
         mssLabels.push(label.new(tm, lvl, txt, xloc = xloc.bar_time, style = label.style_label_center, color = color.new(color.black, 100), textcolor = color.red, size = sNote == size.tiny ? size.small : sNote))
-        if mssLabels.size() > 40
+        if mssLabels.size() > (iClean ? 4 : 40)
             line.delete(mssLines.shift())
             line.delete(mssLines.shift())
             label.delete(mssLabels.shift())
@@ -1419,14 +1420,17 @@ f_evTxt(Trade tr, string ev, float px, float r) =>
      ev == "close" ? "📰 " + s + " CLOSED before red news at " + f_num(px) + " · " + f_rTxt(r) + "R" : s + " " + ev
 var array<line>  sigSdpL = array.new<line>()
 var array<label> sigSdpT = array.new<label>()
+f_clearSigSdp() =>  // Clean view: only the newest signal keeps its entry-leg SDP
+    for ln in sigSdpL
+        line.delete(ln)
+    for lb in sigSdpT
+        label.delete(lb)
+    sigSdpL.clear()
+    sigSdpT.clear()
+    sigSdpL.size()
 f_sigSdp(float one, float zero, int b1, int b0, bool full, color col, string tag) =>
-    if iClean  // Clean view: only the newest signal keeps its entry-leg SDP
-        for ln in sigSdpL
-            line.delete(ln)
-        for lb in sigSdpT
-            label.delete(lb)
-        sigSdpL.clear()
-        sigSdpT.clear()
+    if iClean
+        f_clearSigSdp()
     int x1 = b0 >= 0 ? math.min(b0, b1) : b1
     int x2 = math.max(math.max(b0, b1), x1 + 2)
     array<float> ks = full ? array.from(1.0, 0.786, 0.705, 0.618, 0.5, 0.0, -1.0, -1.5, -2.0, -2.5) : array.from(1.0, 0.0, -1.0, -2.0, -2.5)
@@ -1949,6 +1953,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
         if usedStops.size() > 50
             usedStops.shift()
         st.liveLeg := lg.oneBar
+        st.lastSig := lg.oneBar
         string zoneTxt = lg.zone == "Z2" ? "-" + str.tostring(iZ2a) + "/-" + str.tostring(iZ2b) : "-" + str.tostring(iZ3a) + "/-" + str.tostring(iZ3b)
         string ltfTxt = lg.z5.mss ? " · stop hunt + MSS " + iLtfTf + "m" : ""
         if iShowTrade
@@ -2238,6 +2243,7 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         if usedStops.size() > 50
             usedStops.shift()
         st.liveLeg := lg.oneBar
+        st.lastSig := lg.oneBar
         string zoneTxt = isSb ? "-1/-1.5 silver bullet" : buy ? "hunt leg discount" : "hunt leg premium"
         string ltfTxt = ltf ? " · MSS " + iLtfTf + "m" : ""
         if iShowTrade
@@ -2246,7 +2252,9 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
             f_tradeLines(trNew, DRAW or not iOldSig, tpWhy)
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
             f_drawFvg(g, buy)
-            if ltf or not iShowLegs
+            if iClean
+                f_clearSigSdp()
+            if ltf or not iShowLegs or (not iClean and lg.lns.size() == 0)
                 f_sigSdp(l1, lz, ltf ? f_bar5(lg.c5.xi, lg.oneBar) : lg.oneBar, ltf ? lg.c5.zeroBar : lg.zeroBar, DRAW, col, isSb ? "SDP" : ltf ? "entry leg " + iLtfTf + "m" : "hunt leg")
             string txt = (buy ? "BUY " : "SELL ") + grade + " (" + str.tostring(score) + "/" + str.tostring(maxScore) + ")" + (isSb ? "\nSilver bullet -1/-1.5 (with the move)\n" : "\nReversal at prev. leg zone: hunt + MSS" + ltfTxt + "\n") + "Entry " + f_num(entry) + "\nSL " + f_num(stop) + "\nTP " + f_num(main) + tpWhy + "\nR:R 1:" + str.tostring(rr, "0.0") + "\nDealing range " + f_num(drLo) + " - " + f_num(drHi) + " · 50% " + f_num(drEq) + "\nDaily bias: " + f_dBiasTxt(buy) + "\n" + f_htfTxt(buy, entry) + "\n" + f_dFvgTxt(buy)
             float aB = na(atr14) ? 0.0 : atr14
@@ -2528,6 +2536,13 @@ f_stepBook(array<Leg> book) =>
     fired
 
 var array<Leg> histLegs = array.new<Leg>()
+f_hasTrade(Leg lg) =>
+    bool has = false
+    for tr in trades
+        if tr.legBar == lg.oneBar
+            has := true
+    has
+f_showSig(Leg lg) => lg.signaled and (lg.oneBar == st.lastSig or f_hasTrade(lg))
 f_freezeLeg(Leg lg) =>
     int x2 = math.min(bar_index, f_fibEnd(lg))
     if not iFibTv
@@ -2580,7 +2595,7 @@ f_upkeep(array<Leg> book) =>
             if not lg.done
                 if not iClean
                     f_extendLeg(lg)
-                else if k == prim or lg.signaled
+                else if k == prim or f_showSig(lg)
                     if lg.lns.size() == 0
                         f_drawLeg(lg)
                     else
@@ -2589,7 +2604,7 @@ f_upkeep(array<Leg> book) =>
                     f_hide(lg)
             if lg.done
                 if not lg.cleaned
-                    bool keep = lg.signaled ? iHist != "Live legs only" : not iClean and iHist == "All legs" and lg.endWhy != "replaced by the last stop hunt"
+                    bool keep = lg.signaled ? iHist != "Live legs only" and (not iClean or f_showSig(lg)) : not iClean and iHist == "All legs" and lg.endWhy != "replaced by the last stop hunt"
                     if keep and iClean and lg.lns.size() == 0
                         f_drawLeg(lg)
                     if keep and lg.lns.size() > 0
@@ -2597,7 +2612,7 @@ f_upkeep(array<Leg> book) =>
                         if not lg.signaled and lg.endWhy != ""
                             lg.lbs.push(label.new(math.min(bar_index, f_fibEnd(lg)), f_fib(lg, 0.0), "SDP ended: " + lg.endWhy, style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
                         histLegs.push(lg)
-                        while histLegs.size() > (iClean ? 1 : iHistN)
+                        while histLegs.size() > iHistN
                             f_deleteLeg(histLegs.shift())
                     else
                         f_deleteLeg(lg)
@@ -2608,6 +2623,12 @@ f_stepBook(bearLegs)
 f_stepBook(bullLegs)
 f_upkeep(bearLegs)
 f_upkeep(bullLegs)
+if iClean and histLegs.size() > 0  // Clean view: a finished leg stays only while its trade is open or it gave the newest signal
+    for i = histLegs.size() - 1 to 0
+        Leg h = histLegs.get(i)
+        if not f_showSig(h)
+            f_deleteLeg(h)
+            histLegs.remove(i)
 
 var table dash = table.new(iDashPos == "Bottom right" ? position.bottom_right : iDashPos == "Bottom left" ? position.bottom_left : iDashPos == "Top left" ? position.top_left : position.top_right, 2, 12, bgcolor = color.new(color.black, 20), border_color = color.new(color.gray, 60), border_width = 1)
 f_row(int r, string k, string v, color col) =>
@@ -2660,4 +2681,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for a hunt on both sides)", color.gray)
 
-// ===== END OF SCRIPT: line 2663 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2684 — if your editor stops before this line, the copy was cut off =====
