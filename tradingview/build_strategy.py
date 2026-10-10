@@ -17,11 +17,13 @@ DST = HERE / "MZ_SDP_strategy.pine"
 
 # Costs default to EURUSD: 0.00005 per unit per side = about 1 pip round trip (spread) on a
 # 100k position. They live in the strategy Properties tab, where the user changes them per market.
+# Margin 0: no leverage limit (Pine v6 defaults to 100% margin, which cannot carry 1%-risk FX positions);
+# the size comes from the risk % only.
 DECLARATION = (
     'strategy("MZ SDP Strategy — Standard Deviation Projection (Milad Zaker)", shorttitle = "MZ SDP Strategy", '
     'overlay = true, max_lines_count = 500, max_labels_count = 500, max_boxes_count = 300, max_bars_back = 2000, '
     'initial_capital = 10000, pyramiding = 1, commission_type = strategy.commission.cash_per_contract, '
-    'commission_value = 0.00005, slippage = 2, process_orders_on_close = false)'
+    'commission_value = 0.00005, slippage = 2, margin_long = 0, margin_short = 0, process_orders_on_close = false)'
 )
 
 HEADER_NOTE = (
@@ -57,16 +59,20 @@ f_stratEvent(Trade tr, string ev) =>
     int k = stratLive.indexof(tr.id)
     if k >= 0
         bool unfilled = ev == "cancel" or ev == "expired" or ev == "void"
-        if unfilled  // the indicator never entered: no order may stay behind
+        if unfilled or ev == "close"  // news, or the indicator never entered: close whatever the emulator holds (no-op if nothing)
+            strategy.close(tr.id, comment = ev == "close" ? "news" : ev == "void" ? "opened past SL" : ev)
+        if unfilled  // and no order may stay behind
             strategy.cancel(tr.id)
             strategy.cancel(tr.id + " p")
             strategy.cancel(tr.id + " x")
-        if ev == "close" or ev == "void"
-            strategy.close(tr.id, comment = ev == "close" ? "news" : "opened past SL")
         if unfilled or ev == "tp" or ev == "sl" or ev == "close"
             strategy.cancel(tr.id)  // an entry the emulator has not filled yet
             stratLive.remove(k)
     ev
+// the indicator takes no fill after its last valid bar: cancel the entry at that bar's close so the emulator cannot fill it later
+for t in trades
+    if t.state == 0 and bar_index >= t.validUntil and stratLive.includes(t.id)
+        strategy.cancel(t.id)
 // a trade the indicator dropped without an event does not block the next signal
 if stratLive.size() > 0
     for i = stratLive.size() - 1 to 0

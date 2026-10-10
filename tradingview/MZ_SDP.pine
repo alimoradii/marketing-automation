@@ -2014,7 +2014,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
         lg.signaled := true
         st.dayCount += 1
         st.signals += 1
-        string id = TK + "-" + timeframe.period + "-" + side + "-" + str.format_time(time_close, "yyyyMMddHHmm", "UTC")
+        string id = TK + "-" + timeframe.period + "-" + side + "-" + str.format_time(time_close, "yyyyMMddHHmm", "UTC") + "-" + str.tostring(st.signals)  // unique: two setups can signal on one bar
         Trade trNew = Trade.new(id, not buy, entry, stop, partial, main, bar_index + validBars, market, legBar = lg.oneBar)
         trNew.warn := f_warn(buy, entry)
         trades.push(trNew)
@@ -2313,7 +2313,7 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         lg.signaled := true
         st.dayCount += 1
         st.signals += 1
-        string id = TK + "-" + timeframe.period + "-" + side + "-" + str.format_time(time_close, "yyyyMMddHHmm", "UTC")
+        string id = TK + "-" + timeframe.period + "-" + side + "-" + str.format_time(time_close, "yyyyMMddHHmm", "UTC") + "-" + str.tostring(st.signals)  // unique: two setups can signal on one bar
         Trade trNew = Trade.new(id, not buy, entry, stop, partial, main, bar_index + validBars, market, legBar = lg.oneBar)
         trNew.warn := f_warn(buy, entry)
         trades.push(trNew)
