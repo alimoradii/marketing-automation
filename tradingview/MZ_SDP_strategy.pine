@@ -1215,21 +1215,22 @@ f_mainTarget(bool buy, float entry, float risk, float zero, float one, float drE
     if iTgtMode == TGT_DR and not na(drEq)
         [t0, w0, g0] = f_drTarget(buy, zero, one, drEq, entry)
         float t1 = t0
-        string w1 = w0
+        string lvl = w0  // short name of the level for the cap texts
         tag := g0
+        why := " (" + w0 + ")"
         if iTgtLiq and not na(edge) and (buy ? t0 > edge : t0 < edge)  // the SDP level is past the opposite liquidity: that BSL / SSL is the target
             t1 := edge
-            w1 := (buy ? "BSL" : "SSL") + " of the dealing range: " + w0 + " at " + f_num(t0) + " is past it"
+            lvl := (buy ? "BSL" : "SSL") + " of the dealing range"
             tag := buy ? "BSL" : "SSL"
+            why := " (" + lvl + "; " + w0 + " at " + f_num(t0) + " is past it)"
         t := t1
-        why := " (" + w1 + ")"
         if buy ? t1 > cap : t1 < cap
             t := buy ? math.max(cap, drEq) : math.min(cap, drEq)
             if t == cap
-                why := " (" + capTxt + "; " + w1 + " at " + f_num(t1) + ")"
+                why := " (" + capTxt + "; " + lvl + " at " + f_num(t1) + ")"
                 tag := capTxt
             else if t1 != drEq
-                why := " (50% of the dealing range: " + w1 + " at " + f_num(t1) + " is past the " + capTxt + ")"
+                why := " (50% of the dealing range: " + lvl + " at " + f_num(t1) + " is past the " + capTxt + ")"
                 tag := "50%"
         t := buy ? t - iTpBuf * PIP : t + iTpBuf * PIP
     else
@@ -2833,4 +2834,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2836 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2837 — if your editor stops before this line, the copy was cut off =====
