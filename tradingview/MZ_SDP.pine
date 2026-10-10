@@ -1203,13 +1203,21 @@ if hunts.size() > 0
                 zrOne.push(hu.one)
                 zrZero.push(hu.zero)
                 zrBar.push(hu.bar)
-                if hu.bear
-                    lDrHi := hu.one
-                    lDrHiB := hu.bar
-                else
-                    lDrLo := hu.one
-                    lDrLoB := hu.bar
-                lDrNew := true
+                // its side of the live dealing range: the hunt, or a further high / low printed before it was confirmed
+                float nX = hu.one
+                int nXB = hu.bar
+                for b = hu.bar + 1 to bar_index
+                    if hu.bear ? high[bar_index - b] > nX : low[bar_index - b] < nX
+                        nX := hu.bear ? high[bar_index - b] : low[bar_index - b]
+                        nXB := b
+                if hu.bear and (nX != lDrHi or nXB != lDrHiB)
+                    lDrHi := nX
+                    lDrHiB := nXB
+                    lDrNew := true
+                else if not hu.bear and (nX != lDrLo or nXB != lDrLoB)
+                    lDrLo := nX
+                    lDrLoB := nXB
+                    lDrNew := true
                 if zrBar.size() > 60
                     zrBear.shift()
                     zrOne.shift()
@@ -1263,13 +1271,12 @@ f_greyBox(box b) =>
     box.set_border_color(b, color.new(color.gray, 75))
     box.set_text_color(b, color.new(color.gray, 40))
     b
-if not na(lDrHi) and not na(lDrLo)
-    if high > lDrHi
-        lDrHi := high
-        lDrHiB := bar_index
-    if low < lDrLo
-        lDrLo := low
-        lDrLoB := bar_index
+if not na(lDrHi) and high > lDrHi
+    lDrHi := high
+    lDrHiB := bar_index
+if not na(lDrLo) and low < lDrLo
+    lDrLo := low
+    lDrLoB := bar_index
 if iShowLDR and DRAW and not na(lDrHi) and not na(lDrLo) and lDrHi > lDrLo
     float lEq = (lDrHi + lDrLo) / 2
     int lx1 = math.max(0, bar_index - 4500, math.min(lDrHiB, lDrLoB))
@@ -2614,4 +2621,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for a hunt on both sides)", color.gray)
 
-// ===== END OF SCRIPT: line 2617 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2624 — if your editor stops before this line, the copy was cut off =====
