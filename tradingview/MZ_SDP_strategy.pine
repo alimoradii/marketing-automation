@@ -2096,7 +2096,6 @@ f_emit(Leg lg, Gap g, string win, bool buy, float entry, bool market, float stop
 
 f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB) =>
     bool buy = lg.bear
-    string side = buy ? "buy" : "sell"
     string rej = ""
     float entry = iEdge == "Proximal" ? (buy ? g.top : g.bottom) : (g.top + g.bottom) / 2
     bool market = false
@@ -2345,7 +2344,6 @@ f_stepLeg(Leg lg) =>
 f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setupName, float drHi, int drHiB, float drLo, int drLoB) =>
     bool isSb = setupName == "silver_bullet"
     bool buy = not lg.bear
-    string side = buy ? "buy" : "sell"
     string rej = ""
     float entry = iEdge == "Proximal" ? (buy ? g.top : g.bottom) : (g.top + g.bottom) / 2
     bool market = false
@@ -2833,4 +2831,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2836 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2834 — if your editor stops before this line, the copy was cut off =====
