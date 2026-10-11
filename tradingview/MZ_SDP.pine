@@ -155,7 +155,7 @@ bool  iShowMss   = input.bool(true, "MSS line (red, like the notes)", group = G_
 bool  iMssDraw   = input.bool(true, "Draw an SDP only after its MSS (price crossed its 0)", tooltip = "Videos (SDP, 07:10): we draw the SDP once we are sure the stop hunt happened - when there is a market structure shift.", group = G_V)
 bool  iFibTv     = input.bool(false, "SDP like the TradingView fib tool (lines only as wide as 0..1)", group = G_V, tooltip = "Off (default): the levels 1, 0, -1 .. -4 run from the leg to the current candle, labelled at the right, so the zones are visible where price is.")
 int   iFibLen    = input.int(0, "Fib line length after fib 1 (bars, 0 = up to price)", minval = 0, group = G_V)
-string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest) + the legs of open trades and of the newest signal; only the newest signal keeps its entry-leg SDP; the last 4 MSS. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
+string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest), its levels running to the current candle, + the leg of a pending / open trade; only the newest signal keeps its entry leg; the last 4 MSS; closed signals as small result markers. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
 string iTxtSize  = input.string("Normal", "SDP text size", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iSigSize  = input.string("Normal", "Signal text size (box, Entry / SL / TP, markers)", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iNoteSize = input.string("Tiny", "Notes / MSS text size", options = ["Tiny", "Small", "Normal", "Large"], group = G_V)
@@ -174,7 +174,7 @@ bool  iCompact   = input.bool(true, "Compact signal box (details in the tooltip 
 bool  iOldSig    = input.bool(true, "Older signals as small ▲ / ▼ markers with the result", group = G_V, tooltip = "Signals older than the N days above are drawn as a small marker under / over the candle; it turns into the result (+4.0R / -1.0R).")
 bool  iOldLbl    = input.bool(false, "…older signals: Entry / SL / TP price text too (uses many labels)", group = G_V, tooltip = "TradingView keeps at most 500 labels per indicator; with this on, the oldest signal markers drop off the chart.")
 bool  iOldCanc   = input.bool(false, "Keep cancelled / expired signals in full (grey lines and box)", group = G_V, tooltip = "Off: a cancelled / expired signal leaves only a small grey ✕ / ⌛ at its candle (hover it for the details); older ones disappear.")
-bool  iSlimDone  = input.bool(true, "Closed signals: only a small ▲ / ▼ +R marker (details in its tooltip)", group = G_V, tooltip = "When a trade hits TP / SL (or closes for news) its signal box and price texts go; the coloured result stays at the signal candle and its lines stay thin.")
+bool  iSlimDone  = input.bool(true, "Closed signals: only a small ▲ / ▼ +R marker (details in its tooltip)", group = G_V, tooltip = "When a trade hits TP / SL (or closes for news) its signal box and price texts go; the coloured result stays at the signal candle; its lines turn thin and its FVG box stays.")
 bool  iShowDash  = input.bool(true, "Dashboard", group = G_V)
 int   iLineBars  = input.int(20, "Signal line length (bars)", minval = 5, maxval = 400, group = G_V)
 string iDayLine  = input.string("NY midnight", "Yellow line at each day start", options = ["Off", "NY midnight", "Daily candle (17:00 NY)"], group = G_V)
@@ -327,6 +327,8 @@ type Trade
     array<line>  lns
     array<label> lls
     array<box>   bxs
+    float  sigH              // high / low of the signal candle: the small ▲ / ▼ marker sits there
+    float  sigL
     box    fvgB              // entry FVG box / no-FVG line + text (removed with a cancelled signal)
     line   fvgL
     label  fvgT
@@ -1586,10 +1588,12 @@ f_endLines(Trade tr, string ev) =>
             line.delete(tr.fvgL)
         if drop and not na(tr.fvgT)
             label.delete(tr.fvgT)
-    if not na(tr.lls) and iSlimDone and (ev == "tp" or ev == "sl" or ev == "close")
+    if not na(tr.lls) and iSlimDone and not tr.mini and (ev == "tp" or ev == "sl" or ev == "close")
         for lb in tr.lls
             label.delete(lb)
         tr.lls.clear()
+        for ln in tr.lns
+            line.set_width(ln, 1)
     if not na(tr.lns) and ev == "filled" and tr.lns.size() > 0
         line.set_y1(tr.lns.get(0), tr.entry)
         line.set_y2(tr.lns.get(0), tr.entry)
@@ -1613,9 +1617,7 @@ f_markBox(Trade tr, string ev, float r) =>
             label.set_tooltip(tr.lab, (ev == "tp" ? "TP " : ev == "sl" ? "SL " : "closed (news) ") + f_rTxt(r) + "R\n" + tr.tip)
     else if not na(tr.lab) and ((not iOldCanc and (ev == "cancel" or ev == "expired" or ev == "void")) or (iSlimDone and (ev == "tp" or ev == "sl" or ev == "close")))
         bool shut = ev == "tp" or ev == "sl" or ev == "close"
-        int lx = label.get_x(tr.lab)  // only a small marker at the signal candle stays (details in its tooltip)
-        int ago = math.max(0, math.min(bar_index - lx, 1500))
-        label.set_xy(tr.lab, lx, tr.sell ? high[ago] : low[ago])
+        label.set_xy(tr.lab, label.get_x(tr.lab), tr.sell ? tr.sigH : tr.sigL)  // only a small marker at the signal candle stays (details in its tooltip)
         label.set_text(tr.lab, (tr.sell ? "▼" : "▲") + (shut ? " " + f_rTxt(r) + "R" : ev == "expired" ? " ⌛" : " ✕"))
         label.set_style(tr.lab, tr.sell ? label.style_label_down : label.style_label_up)
         label.set_color(tr.lab, color.new(color.black, 100))
@@ -2054,6 +2056,8 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
         string id = TK + "-" + timeframe.period + "-" + side + "-" + str.format_time(time_close, "yyyyMMddHHmm", "UTC") + "-" + str.tostring(st.signals)  // unique: two setups can signal on one bar
         Trade trNew = Trade.new(id, not buy, entry, stop, partial, main, bar_index + validBars, market, legBar = lg.oneBar)
         trNew.warn := f_warn(buy, entry)
+        trNew.sigH := high
+        trNew.sigL := low
         trades.push(trNew)
         f_stratOpen(trNew, grade)
         usedStops.push(math.round(stop / PIP * 10) * (buy ? 1 : -1))
@@ -2353,6 +2357,8 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
         string id = TK + "-" + timeframe.period + "-" + side + "-" + str.format_time(time_close, "yyyyMMddHHmm", "UTC") + "-" + str.tostring(st.signals)  // unique: two setups can signal on one bar
         Trade trNew = Trade.new(id, not buy, entry, stop, partial, main, bar_index + validBars, market, legBar = lg.oneBar)
         trNew.warn := f_warn(buy, entry)
+        trNew.sigH := high
+        trNew.sigL := low
         trades.push(trNew)
         f_stratOpen(trNew, grade)
         usedStops.push(math.round(stop / PIP * 10) * (buy ? 1 : -1))
@@ -2741,7 +2747,7 @@ f_upkeep(array<Leg> book) =>
                     f_hide(lg)
             if lg.done
                 if not lg.cleaned
-                    bool keep = lg.signaled ? iHist != "Live legs only" and (not iClean or f_showSig(lg)) : not iClean and iHist == "All legs" and lg.endWhy != "replaced by the last stop hunt"
+                    bool keep = lg.signaled ? iHist != "Live legs only" and (not iClean or f_hasTrade(lg)) : not iClean and iHist == "All legs" and lg.endWhy != "replaced by the last stop hunt"
                     if keep and iClean and lg.lns.size() == 0
                         f_drawLeg(lg)
                     if keep and lg.lns.size() > 0
@@ -2762,10 +2768,10 @@ for side = 0 to 1
     f_stepBook(side == 0 ? bearLegs : bullLegs)
 for side = 0 to 1
     f_upkeep(side == 0 ? bearLegs : bullLegs)
-if iClean and histLegs.size() > 0  // Clean view: a finished leg stays only while its trade is open or it gave the newest signal
+if iClean and histLegs.size() > 0  // Clean view: a finished leg stays only while its trade is pending / open
     for i = histLegs.size() - 1 to 0
         Leg h = histLegs.get(i)
-        if not f_showSig(h)
+        if not f_hasTrade(h)
             f_deleteLeg(h)
             histLegs.remove(i)
 
@@ -2820,4 +2826,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2823 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2829 — if your editor stops before this line, the copy was cut off =====
