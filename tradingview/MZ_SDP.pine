@@ -103,11 +103,11 @@ int    iValidMin = input.int(120, "Limit order valid (min) — not in notes", gr
 const string G_D = "📏 Dealing range (MZ ICT knowledge base)"
 bool   iShowDR   = input.bool(true, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
 const string DRL_ANY   = "Any swing high / low (same timeframe)"
+const string DRL_EXT   = "External liquidity: previous day / week highs & lows"
 const string DRU_CHART = "Dealing range on the chart (BSL ↔ SSL)"
-string iDrLiq    = input.string("Session / day / week + equal highs / lows", "Liquidity that makes the dealing range", options = ["Session / day / week + equal highs / lows", DRL_ANY], group = G_D, tooltip = "Notes (ICT basics): the dealing range forms when liquidity on both sides, sell side and buy side, has been taken. Its top is the last swing that took buy-side liquidity, its bottom the last swing that took sell-side liquidity. Session / day / week: the important liquidity of the notes (previous session, day and week highs / lows), equal highs / lows and older swings that themselves took such liquidity. Any swing: every older swing high / low of this timeframe counts as buy-side / sell-side liquidity (more, smaller ranges).")
+string iDrLiq    = input.string(DRL_EXT, "Liquidity that makes the dealing range", options = [DRL_EXT, "Session / day / week + equal highs / lows", DRL_ANY], group = G_D, tooltip = "External liquidity (default, notes: highs / lows of the higher timeframe are external liquidity, those of the same timeframe only buy-side / sell-side; price runs from the internal liquidity inside the range to the external): the range top is the last swing that took a previous day / week high, its bottom the last swing that took a previous day / week low - session highs / lows and equal highs / lows inside it do not move it. Notes (ICT basics): the dealing range forms when liquidity on both sides, sell side and buy side, has been taken. Its top is the last swing that took buy-side liquidity, its bottom the last swing that took sell-side liquidity. Session / day / week: the important liquidity of the notes (previous session, day and week highs / lows), equal highs / lows and older swings that themselves took such liquidity. Any swing: every older swing high / low of this timeframe counts as buy-side / sell-side liquidity (more, smaller ranges).")
 string iDrUse    = input.string(DRU_CHART, "Buy in discount / sell in premium of", options = [DRU_CHART, "The setup's own range"], group = G_D, tooltip = "Which dealing range the signals, the entry FVG and the targets use. Chart: the BSL ↔ SSL range drawn on the chart, as it is when the setup forms. Setup's own range: zone reversal = SDP fib 1 to the zone extreme, hunt setup = the hunt to the last opposite stop hunt.")
-bool   iDrExt    = input.bool(true, "Dealing range from external liquidity (a grab inside the range does not move it)", group = G_D, tooltip = "Notes: price runs from internal liquidity (IRL: highs / lows and FVGs inside the range) to external liquidity (ERL: the range high / low). On: liquidity taken inside the range does not move it; only taking its high (low) moves that edge, to the swing where price turns. The other edge then moves to the deepest swing inside the range that took liquidity on that side since, if that pullback reached discount (premium) of the new range; otherwise it stays. Off: every new liquidity grab re-anchors its side (smaller, faster ranges).")
-bool   iShowLDR  = input.bool(true, "Draw the dealing range (last BSL taken ↔ last SSL taken)", group = G_D, tooltip = "Top: the last swing that took buy-side liquidity, bottom: the last swing that took sell-side liquidity (see the setting above); the labels name the liquidity that was taken. Price trading past it widens it. With \"from external liquidity\" (default) a grab inside the range does not move it; otherwise a new liquidity grab on either side starts a new range (older ones kept as faint lines, see the next setting). Premium above the 50%, discount below.")
+bool   iShowLDR  = input.bool(true, "Draw the dealing range (last BSL taken ↔ last SSL taken)", group = G_D, tooltip = "Top: the last swing that took buy-side liquidity, bottom: the last swing that took sell-side liquidity (see the setting above); the labels name the liquidity that was taken. Price trading past it widens it; a new grab of that liquidity on either side starts a new range (older ones kept as faint lines, see the next setting). Premium above the 50%, discount below.")
 int    iLdrN     = input.int(1, "…keep the last N ranges", minval = 1, maxval = 10, group = G_D)
 string iLdrFill  = input.string("Right of price", "…premium / discount colours", options = ["Right of price", "Whole range"], group = G_D, tooltip = "Right of price: the range is drawn with lines (BSL top, 50%, SSL bottom) and the green / red colours only in a band to the right of the last candle, so the candles stay readable. Whole range: coloured boxes over the whole range.")
 color  cDisc     = input.color(#4caf50, "Discount", inline = "drc", group = G_D)
@@ -340,12 +340,6 @@ type DRng
     string pHiWhy = ""
     int    pLoBar = -1
     string pLoWhy = ""
-    float  cHi            // external range: highest swing that took buy-side liquidity INSIDE the range since the last edge was taken
-    int    cHiB = -1
-    string cHiWhy = ""
-    float  cLo            // ...lowest swing that took sell-side liquidity inside it
-    int    cLoB = -1
-    string cLoWhy = ""
 
 type Stats
     int   signals = 0
@@ -902,7 +896,7 @@ while sweeps.size() > 0 and sweeps.first().bar < bar_index - 10
 var DRng dr = DRng.new()
 bool DR_CHART = iDrUse == DRU_CHART
 f_drReady() => not na(dr.hi) and not na(dr.lo) and dr.hi > dr.lo
-f_drLiq(Sweep sw) => iDrLiq == DRL_ANY or sw.kind != "swing" or str.startswith(sw.name, "Equal") or str.startswith(sw.name, "Hunt")
+f_drLiq(Sweep sw) => iDrLiq == DRL_EXT ? (sw.kind == "day" or sw.kind == "week") : iDrLiq == DRL_ANY or sw.kind != "swing" or str.startswith(sw.name, "Equal") or str.startswith(sw.name, "Hunt")
 f_addWhy(string w, string nm) => str.contains(w, nm) ? w : w == "" ? nm : w + ", " + nm
 // a grab of buy-side / sell-side liquidity waits for the swing where price turns (the extreme since the grab, see f_onSwing)
 for sw in sweptNow
@@ -1003,62 +997,22 @@ f_onSwing(int i, float price, bool isHigh) =>
                     break
         if i - pB > 300 or turn
             string why = isHigh ? dr.pHiWhy : dr.pLoWhy
-            // external range: a turn that is not the range's own extreme (where price took the edge) is internal liquidity
-            bool inner = turn and iDrExt and f_drReady() and i != (isHigh ? dr.hiB : dr.loB)
             if isHigh
-                if inner
-                    if na(dr.cHi) or price > dr.cHi
-                        dr.cHi := price
-                        dr.cHiB := i
-                        dr.cHiWhy := why
-                else if turn
+                if turn
                     if na(dr.hi) or price != dr.hi or i != dr.hiB
                         dr.isNew := true
-                    if iDrExt and not na(dr.cLo) and not na(dr.lo) and dr.cLoB <= i
-                        float m = dr.cLo  // the pullback low before the run: lowest low since the inside sell-side grab
-                        int mB = dr.cLoB
-                        for b = math.max(dr.cLoB, i - 1500) to i
-                            if low[bar_index - b] < m
-                                m := low[bar_index - b]
-                                mB := b
-                        if m < (dr.lo + price) / 2  // it reached discount: the new leg starts there
-                            dr.lo := m
-                            dr.loB := mB
-                            dr.loWhy := dr.cLoWhy
-                            dr.isNew := true
                     dr.hi := price
                     dr.hiB := i
                     dr.hiWhy := why
-                    dr.cHi := na
-                    dr.cLo := na
                 dr.pHiBar := -1
                 dr.pHiWhy := ""
             else
-                if inner
-                    if na(dr.cLo) or price < dr.cLo
-                        dr.cLo := price
-                        dr.cLoB := i
-                        dr.cLoWhy := why
-                else if turn
+                if turn
                     if na(dr.lo) or price != dr.lo or i != dr.loB
                         dr.isNew := true
-                    if iDrExt and not na(dr.cHi) and not na(dr.hi) and dr.cHiB <= i
-                        float m = dr.cHi  // the pullback high before the run: highest high since the inside buy-side grab
-                        int mB = dr.cHiB
-                        for b = math.max(dr.cHiB, i - 1500) to i
-                            if high[bar_index - b] > m
-                                m := high[bar_index - b]
-                                mB := b
-                        if m > (price + dr.hi) / 2  // it reached premium: the new leg starts there
-                            dr.hi := m
-                            dr.hiB := mB
-                            dr.hiWhy := dr.cHiWhy
-                            dr.isNew := true
                     dr.lo := price
                     dr.loB := i
                     dr.loWhy := why
-                    dr.cHi := na
-                    dr.cLo := na
                 dr.pLoBar := -1
                 dr.pLoWhy := ""
     if names != ""
@@ -2829,4 +2783,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2832 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2786 — if your editor stops before this line, the copy was cut off =====
