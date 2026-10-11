@@ -427,7 +427,7 @@ class Base:
         self.iEdge = cfg.get('iEdge', "CE (50%)")  # L93 string
         self.iLtf = cfg.get('iLtf', True)  # L94 bool
         self.iLtfTf = cfg.get('iLtfTf', "5")  # L95 timeframe
-        self.iLtfMss = cfg.get('iLtfMss', True)  # L96 bool
+        self.iLtfMss = cfg.get('iLtfMss', False)  # L96 bool
         self.iShowFvg = cfg.get('iShowFvg', True)  # L97 bool
         self.iSlPips = cfg.get('iSlPips', 0.0)  # L98 float
         self.iTpBuf = cfg.get('iTpBuf', 0.2)  # L99 float
