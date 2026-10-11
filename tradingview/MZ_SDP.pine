@@ -160,7 +160,7 @@ string iTxtSize  = input.string("Normal", "SDP text size", options = ["Small", "
 string iSigSize  = input.string("Normal", "Signal text size (box, Entry / SL / TP, markers)", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iNoteSize = input.string("Tiny", "Notes / MSS text size", options = ["Tiny", "Small", "Normal", "Large"], group = G_V)
 string iDashSize = input.string("Small", "Dashboard text size", options = ["Small", "Normal", "Large"], group = G_V)
-string iDashPos  = input.string("Top right", "Dashboard position", options = ["Top right", "Bottom right", "Bottom left", "Top left"], group = G_V)
+string iDashPos  = input.string("Bottom left", "Dashboard position", options = ["Top right", "Bottom right", "Bottom left", "Top left"], group = G_V)
 bool  iFibLeft   = input.bool(false, "Fib labels on the left (like the TradingView fib tool)", group = G_V)
 string iHist     = input.string("All legs", "History (Full display): keep finished legs", options = ["All legs", "Traded legs only", "Live legs only"], inline = "hist", group = G_V)
 int   iHistN     = input.int(20, "last", minval = 1, maxval = 40, inline = "hist", tooltip = "TradingView allows 500 lines/labels per indicator, so only the most recent finished legs are kept. Each one shows why it ended without a trade.", group = G_V)
@@ -169,11 +169,12 @@ bool  iShowMO    = input.bool(true, "NY Open line", group = G_V)
 bool  iShowWin   = input.bool(true, "Shade trade windows", group = G_V)
 bool  iShowRej   = input.bool(false, "Show why an MSS / setup gave no signal", group = G_V)
 int   iNotesN    = input.int(3, "…keep only the last N notes (0 = all)", minval = 0, group = G_V)
-int   iDrawDays  = input.int(2, "SDPs / MSS / notes / signal lines: only the last N days (0 = all)", minval = 0, group = G_V, tooltip = "Signal boxes and entry arrows are kept for the whole history (grey = cancelled / expired, with the result on filled ones).")
+int   iDrawDays  = input.int(2, "SDPs / MSS / notes / signal lines: only the last N days (0 = all)", minval = 0, group = G_V, tooltip = "Filled signals keep a marker with their result for the whole history; cancelled / expired ones leave a small grey ✕ / ⌛ (settings below).")
 bool  iCompact   = input.bool(true, "Compact signal box (details in the tooltip - hover the box)", group = G_V)
 bool  iOldSig    = input.bool(true, "Older signals as small ▲ / ▼ markers with the result", group = G_V, tooltip = "Signals older than the N days above are drawn as a small marker under / over the candle; it turns into the result (+4.0R / -1.0R).")
 bool  iOldLbl    = input.bool(false, "…older signals: Entry / SL / TP price text too (uses many labels)", group = G_V, tooltip = "TradingView keeps at most 500 labels per indicator; with this on, the oldest signal markers drop off the chart.")
 bool  iOldCanc   = input.bool(false, "Keep cancelled / expired signals in full (grey lines and box)", group = G_V, tooltip = "Off: a cancelled / expired signal leaves only a small grey ✕ / ⌛ at its candle (hover it for the details); older ones disappear.")
+bool  iSlimDone  = input.bool(true, "Closed signals: only a small ▲ / ▼ +R marker (details in its tooltip)", group = G_V, tooltip = "When a trade hits TP / SL (or closes for news) its signal box and price texts go; the coloured result stays at the signal candle and its lines stay thin.")
 bool  iShowDash  = input.bool(true, "Dashboard", group = G_V)
 int   iLineBars  = input.int(20, "Signal line length (bars)", minval = 5, maxval = 400, group = G_V)
 string iDayLine  = input.string("NY midnight", "Yellow line at each day start", options = ["Off", "NY midnight", "Daily candle (17:00 NY)"], group = G_V)
@@ -326,6 +327,9 @@ type Trade
     array<line>  lns
     array<label> lls
     array<box>   bxs
+    box    fvgB              // entry FVG box / no-FVG line + text (removed with a cancelled signal)
+    line   fvgL
+    label  fvgT
 
 // ICT dealing range: last swing that took buy-side liquidity (top) and last swing that took sell-side liquidity (bottom)
 type DRng
@@ -867,16 +871,16 @@ f_noFvg(bool gapBull, int farBar, float mssPx, float eq) =>
             g := Gap.new(bar_index, px, px, gapBull, nofvg = true)
     g
 
-f_drawFvg(Gap g, bool buy) =>
+f_drawFvg(Trade tr, Gap g, bool buy) =>
     if iShowFvg and DRAW and g.nofvg
         color col = buy ? cBuy : cSell
-        line.new(bar_index - 3, g.top, bar_index + 6, g.top, color = color.new(col, 30), style = line.style_dotted)
-        label.new(bar_index + 6, g.top, g.atMss ? "market entry on the MSS candle" : "no FVG · entry " + (iNoFvg == "Market" ? "market" : iNoFvg == "MSS level" ? "at MSS" : "at 50%"), style = label.style_none, textcolor = col, size = size.tiny)
+        tr.fvgL := line.new(bar_index - 3, g.top, bar_index + 6, g.top, color = color.new(col, 30), style = line.style_dotted)
+        tr.fvgT := label.new(bar_index + 6, g.top, g.atMss ? "market entry on the MSS candle" : "no FVG · entry " + (iNoFvg == "Market" ? "market" : iNoFvg == "MSS level" ? "at MSS" : "at 50%"), style = label.style_none, textcolor = col, size = size.tiny)
     else if iShowFvg and DRAW
         color col = buy ? cBuy : cSell
         int left = g.ltf ? g.t1 : time[math.max(0, bar_index - (g.bar - 2))]
         int right = time + 6 * timeframe.in_seconds() * 1000
-        box.new(left, g.top, right, g.bottom, xloc = xloc.bar_time, border_color = color.new(col, 30), bgcolor = color.new(col, 82), text = g.ltf ? "FVG " + iLtfTf + "m" : "FVG", text_size = size.tiny, text_color = col, text_halign = text.align_center, text_valign = text.align_center)
+        tr.fvgB := box.new(left, g.top, right, g.bottom, xloc = xloc.bar_time, border_color = color.new(col, 30), bgcolor = color.new(col, 82), text = g.ltf ? "FVG " + iLtfTf + "m" : "FVG", text_size = size.tiny, text_color = col, text_halign = text.align_center, text_valign = text.align_center)
     g.bar
 
 array<Sweep> sweptNow = array.new<Sweep>()
@@ -1386,7 +1390,7 @@ if iShowLDR and DRAW and f_drReady()
                 f_hideBox(ldrD.last())
         ldrT.push(line.new(lx1, dr.hi, lx2, dr.hi, color = color.new(cPrem, 30), style = line.style_dotted))
         ldrB.push(line.new(lx1, dr.lo, lx2, dr.lo, color = color.new(cDisc, 30), style = line.style_dotted))
-        ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 30), style = line.style_dashed))
+        ldrE.push(line.new(lx1, lEq, lx2, lEq, color = color.new(color.gray, 45), style = line.style_dotted))
         ldrL.push(label.new(lx2, lEq, "50% " + f_num(lEq), style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.gray, size = size.tiny))
         ldrP.push(box.new(bx1, dr.hi, lx2, lEq, border_color = color.new(cPrem, 100), bgcolor = color.new(cPrem, whole ? 90 : 80), text = tP, text_size = size.tiny, text_color = cPrem, text_halign = text.align_left, text_valign = text.align_top, text_wrap = text.wrap_auto))
         ldrD.push(box.new(bx1, lEq, lx2, dr.lo, border_color = color.new(cDisc, 100), bgcolor = color.new(cDisc, whole ? 90 : 80), text = tD, text_size = size.tiny, text_color = cDisc, text_halign = text.align_left, text_valign = text.align_bottom, text_wrap = text.wrap_auto))
@@ -1504,7 +1508,7 @@ f_sigSdp(float one, float zero, int b1, int b0, bool full, color col, string tag
         f_clearSigSdp()
     int x1 = b0 >= 0 ? math.min(b0, b1) : b1
     int x2 = math.max(math.max(b0, b1), x1 + 2)
-    array<float> ks = array.from(1.0, 0.0, -1.0, -2.0)  // the levels the targets come from (the SDP of the leg itself shows the rest)
+    array<float> ks = array.from(1.0, 0.0)  // the entry leg; its -1 / -2 are the partial / TP lines of the trade
     for k in ks
         float y = zero + k * (one - zero)
         line ln = line.new(x1, y, x2, y, color = color.new(col, k == 0.0 or k == 1.0 ? 15 : full ? 40 : 55))
@@ -1576,6 +1580,16 @@ f_endLines(Trade tr, string ev) =>
                     box.delete(bx)
                 else
                     f_fadeBox(bx, i == 0 ? cPrem : cDisc)  // premium box first, discount second
+        if drop and not na(tr.fvgB)
+            box.delete(tr.fvgB)
+        if drop and not na(tr.fvgL)
+            line.delete(tr.fvgL)
+        if drop and not na(tr.fvgT)
+            label.delete(tr.fvgT)
+    if not na(tr.lls) and iSlimDone and (ev == "tp" or ev == "sl" or ev == "close")
+        for lb in tr.lls
+            label.delete(lb)
+        tr.lls.clear()
     if not na(tr.lns) and ev == "filled" and tr.lns.size() > 0
         line.set_y1(tr.lns.get(0), tr.entry)
         line.set_y2(tr.lns.get(0), tr.entry)
@@ -1597,16 +1611,17 @@ f_markBox(Trade tr, string ev, float r) =>
             label.set_text(tr.lab, arrow + " " + tr.kind + " " + f_rTxt(r) + "R")
             label.set_textcolor(tr.lab, r > 0.05 ? cBuy : r < -0.05 ? cSell : color.gray)
             label.set_tooltip(tr.lab, (ev == "tp" ? "TP " : ev == "sl" ? "SL " : "closed (news) ") + f_rTxt(r) + "R\n" + tr.tip)
-    else if not na(tr.lab) and not iOldCanc and (ev == "cancel" or ev == "expired" or ev == "void")
-        int lx = label.get_x(tr.lab)  // only a small grey marker at the signal candle stays (details in its tooltip)
+    else if not na(tr.lab) and ((not iOldCanc and (ev == "cancel" or ev == "expired" or ev == "void")) or (iSlimDone and (ev == "tp" or ev == "sl" or ev == "close")))
+        bool shut = ev == "tp" or ev == "sl" or ev == "close"
+        int lx = label.get_x(tr.lab)  // only a small marker at the signal candle stays (details in its tooltip)
         int ago = math.max(0, math.min(bar_index - lx, 1500))
         label.set_xy(tr.lab, lx, tr.sell ? high[ago] : low[ago])
-        label.set_text(tr.lab, (tr.sell ? "▼" : "▲") + (ev == "expired" ? " ⌛" : " ✕"))
+        label.set_text(tr.lab, (tr.sell ? "▼" : "▲") + (shut ? " " + f_rTxt(r) + "R" : ev == "expired" ? " ⌛" : " ✕"))
         label.set_style(tr.lab, tr.sell ? label.style_label_down : label.style_label_up)
         label.set_color(tr.lab, color.new(color.black, 100))
-        label.set_textcolor(tr.lab, color.new(color.gray, 30))
+        label.set_textcolor(tr.lab, not shut ? color.new(color.gray, 30) : r > 0.05 ? cBuy : r < -0.05 ? cSell : color.gray)
         label.set_size(tr.lab, size.small)
-        label.set_tooltip(tr.lab, (ev == "cancel" ? "CANCELLED - TP before entry\n" : ev == "void" ? "NOT ENTERED - opened beyond the stop\n" : "EXPIRED - not filled\n") + tr.tip)
+        label.set_tooltip(tr.lab, (ev == "cancel" ? "CANCELLED - TP before entry" : ev == "void" ? "NOT ENTERED - opened beyond the stop" : ev == "expired" ? "EXPIRED - not filled" : (ev == "tp" ? "TP " : ev == "sl" ? "SL " : "closed (news) ") + f_rTxt(r) + "R") + "\n" + tr.tip)
     else if not na(tr.lab)
         string tag = ev == "cancel" ? "❌ CANCELLED - TP before entry, do not enter" : ev == "void" ? "❌ NOT ENTERED - opened beyond the stop" : ev == "expired" ? "⌛ EXPIRED - not filled, do not enter" : ev == "filled" ? "✅ FILLED" : ev == "tp" ? "🎯 TP " + f_rTxt(r) + "R" : ev == "sl" ? "🛑 SL " + f_rTxt(r) + "R" : ev == "close" ? "📰 closed (news) " + f_rTxt(r) + "R" : ""
         if tag != ""
@@ -2053,7 +2068,7 @@ f_signal(Leg lg, Gap g, string win, float drHi, int drHiB, float drLo, int drLoB
             int x2 = bar_index + iLineBars
             f_tradeLines(trNew, DRAW or not iOldSig, tpTag == "" ? "" : " (" + tpTag + ")")
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
-            f_drawFvg(g, buy)
+            f_drawFvg(trNew, g, buy)
             if not na(tz)
                 f_sigSdp(lg.extreme, tz, lg.extremeBar, tzB, DRAW, col, lg.z5.mss ? "entry leg " + iLtfTf + "m" : "entry leg")
             string txt = (buy ? "BUY " : "SELL ") + grade + " (" + str.tostring(score) + "/" + str.tostring(maxScore) + ")\nZone " + zoneTxt + (lg.fs ? " (Failure Swing)" : "") + ltfTxt + "\nEntry " + f_num(entry) + "\nSL " + f_num(stop) + "\nTP " + f_num(main) + tpWhy + "\nR:R 1:" + str.tostring(rr, "0.0") + "\nDealing range " + f_num(drLo) + " - " + f_num(drHi) + " · 50% " + f_num(drEq) + "\nDaily bias: " + f_dBiasTxt(buy) + "\n" + f_htfTxt(buy, entry) + "\n" + f_dFvgTxt(buy)
@@ -2352,7 +2367,7 @@ f_signalCont(Leg lg, Gap g, string win, float stopRef, float mainPx, string setu
             int x2 = bar_index + iLineBars
             f_tradeLines(trNew, DRAW or not iOldSig, tpTag == "" ? "" : " (" + tpTag + ")")
             f_drawDR(trNew, drHi, drHiB, drLo, drLoB, buy)
-            f_drawFvg(g, buy)
+            f_drawFvg(trNew, g, buy)
             if iClean
                 f_clearSigSdp()
             if ltf or not iShowLegs or (not iClean and lg.lns.size() == 0)
@@ -2662,8 +2677,10 @@ f_freezeLeg(Leg lg) =>
         for ln in lg.lns
             line.set_x2(ln, x2)
         if not iFibLeft
+            int x1 = lg.zeroBar >= 0 ? math.min(lg.zeroBar, lg.oneBar) : lg.oneBar
             for lb in lg.lbs
-                label.set_x(lb, x2)
+                label.set_x(lb, x1)
+                label.set_style(lb, label.style_label_right)
         for bx in lg.bxs
             box.set_right(bx, x2)
     x2
@@ -2683,11 +2700,15 @@ f_hide(Leg lg) =>
 f_primary(array<Leg> book) =>
     int best = -1
     int bestPri = -1
+    bool liveHere = false  // the live trade's leg is a running leg of this book: it alone is shown here
+    for x in book
+        if not x.done and x.oneBar == st.liveLeg
+            liveHere := true
     int n = book.size()
     if n > 0
         for k = 0 to n - 1
             Leg lg = book.get(k)
-            if not lg.done and (lg.mssOk or not iMssDraw) and (st.liveLeg < 0 or lg.oneBar == st.liveLeg)
+            if not lg.done and (lg.mssOk or not iMssDraw) and (not liveHere or lg.oneBar == st.liveLeg)
                 int pri = lg.zone != "" or (lg.cMss and not lg.cDone) ? 2 : lg.fs ? 0 : 1
                 if pri >= bestPri
                     best := k
@@ -2707,8 +2728,11 @@ f_upkeep(array<Leg> book) =>
                     f_drawLeg(lg)
             if not lg.done
                 if not iClean
-                    f_extendLeg(lg)
-                else if k == prim or f_showSig(lg)
+                    if lg.lns.size() == 0  // a leg from before the drawing window gets drawn when it reaches it
+                        f_drawLeg(lg)
+                    else
+                        f_extendLeg(lg)
+                else if k == prim or (f_showSig(lg) and (prim < 0 or f_hasTrade(lg)))
                     if lg.lns.size() == 0
                         f_drawLeg(lg)
                     else
@@ -2796,4 +2820,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2799 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2823 — if your editor stops before this line, the copy was cut off =====

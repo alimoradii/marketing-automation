@@ -476,7 +476,7 @@ class Base:
         self.iSigSize = cfg.get('iSigSize', "Normal")  # L159 string
         self.iNoteSize = cfg.get('iNoteSize', "Tiny")  # L160 string
         self.iDashSize = cfg.get('iDashSize', "Small")  # L161 string
-        self.iDashPos = cfg.get('iDashPos', "Top right")  # L162 string
+        self.iDashPos = cfg.get('iDashPos', "Bottom left")  # L162 string
         self.iFibLeft = cfg.get('iFibLeft', False)  # L163 bool
         self.iHist = cfg.get('iHist', "All legs")  # L164 string
         self.iHistN = cfg.get('iHistN', 20)  # L165 int
