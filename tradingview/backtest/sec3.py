@@ -322,63 +322,82 @@ class Sec3:
             self.st.wins += 1
         elif r < -0.05:
             self.st.losses += 1
-        return self.f_update(tr, ev, px, r)
+        return self.f_event(tr, ev, px, r)
+
+    # trade events are queued and handled after the trades loop (Pine: f_update has one call site)
+    def f_event(self, tr, ev, px, r):
+        self.evq.append((tr, ev, px, r))
+        return ev
 
     # ---- L1639 ----
     def f_manage(self, tr, fillBar):
+        cev = ""
+        cpx = NA
         if not fillBar and self.iNewsClose and self.f_newsAt(self.time) != "":
-            self.f_close(tr, "close", self.open)
-        if tr.state == 1:
-            if (self.high >= tr.stop) if tr.sell else (self.low <= tr.stop):
-                self.f_close(tr, "sl", tr.stop)
-        if tr.state == 1 and not fillBar:
+            cev = "close"
+            cpx = self.open
+        elif (self.high >= tr.stop) if tr.sell else (self.low <= tr.stop):
+            cev = "sl"
+            cpx = tr.stop
+        elif not fillBar:
             if not tr.partialDone and not na(tr.tp1) and ((self.low <= tr.tp1) if tr.sell else (self.high >= tr.tp1)):
                 tr.realized += self.iPartFrac * ((tr.entry - tr.tp1) if tr.sell else (tr.tp1 - tr.entry))
                 tr.remaining -= self.iPartFrac
                 tr.partialDone = True
                 if tr.remaining <= 0.000001:  # partial size 1: the whole position closes here
-                    self.f_close(tr, "tp", tr.tp1)
+                    cev = "tp"
+                    cpx = tr.tp1
                 else:
-                    self.f_update(tr, "tp1", tr.tp1, NA)
-            if tr.state == 1 and ((self.low <= tr.tpMain) if tr.sell else (self.high >= tr.tpMain)):
-                self.f_close(tr, "tp", tr.tpMain)
+                    self.f_event(tr, "tp1", tr.tp1, NA)
+            if cev == "" and ((self.low <= tr.tpMain) if tr.sell else (self.high >= tr.tpMain)):
+                cev = "tp"
+                cpx = tr.tpMain
+        if cev != "":
+            self.f_close(tr, cev, cpx)
         return tr.state
 
     # ---- L1658-1691: pending orders (expiry / fill / void / cancel) and open trades ----
     def top_1658(self):
         trades = self.trades
+        self.evq = []
         if trades.size() > 0:
             for i in prange(trades.size() - 1, 0):
                 tr = trades.get(i)
                 self.f_extendLines(tr)
+                mng = tr.state == 1
+                fillNow = False
                 if tr.state == 0:
                     firstTp = tr.tpMain if na(tr.tp1) else tr.tp1
                     if self.bar_index > tr.validUntil:
                         tr.state = 2
-                        self.f_update(tr, "expired", NA, NA)
+                        self.f_event(tr, "expired", NA, NA)
                     elif tr.market or ((self.high >= tr.entry) if tr.sell else (self.low <= tr.entry)):
                         if tr.market:
                             tr.entry = self.open
                         tr.risk = pabs(tr.entry - tr.stop)
                         if (tr.entry >= tr.stop) if tr.sell else (tr.entry <= tr.stop):  # market fill would open at / beyond the stop
                             tr.state = 2
-                            self.f_update(tr, "void", tr.entry, NA)
+                            self.f_event(tr, "void", tr.entry, NA)
                         elif tr.risk <= 0:
                             tr.state = 2  # no f_update in the Pine
                         else:
                             tr.state = 1
-                            self.f_update(tr, "filled", tr.entry, NA)
+                            self.f_event(tr, "filled", tr.entry, NA)
                             # L1679-1681: BUY / SELL fill label - drawing only
-                            self.f_manage(tr, True)
+                            mng = True
+                            fillNow = True
                     elif (self.low <= firstTp) if tr.sell else (self.high >= firstTp):
                         tr.state = 2
-                        self.f_update(tr, "cancel", NA, NA)
-                elif tr.state == 1:
-                    self.f_manage(tr, False)
+                        self.f_event(tr, "cancel", NA, NA)
+                if mng:
+                    self.f_manage(tr, fillNow)
                 if tr.state == 2:
                     if tr.legBar == self.st.liveLeg:
                         self.st.liveLeg = -1
                     trades.remove(i)
+        for q in self.evq:
+            self.f_update(*q)
+        self.evq = []
 
     # ---- L1693-1703: trade windows (L1704 bgcolor dropped) ----
     def top_1693(self):

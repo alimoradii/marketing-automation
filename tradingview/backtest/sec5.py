@@ -293,7 +293,8 @@ class Sec5:
             if go:
                 lg.cDone = True
                 self.f_useGap(best, buy)
-                out = self.f_signalCont(lg, best, self.winNow, hl if ltf else NA, NA, "continuation", drHi, drHiB, drLo, drLoB)
+                self.rqs.append((lg, best, self.winNow, hl if ltf else NA, NA, "continuation", drHi, drHiB, drLo, drLoB))
+                out = True
         return out
 
     # ---- L2509: silver bullet at -1..-1.5 (with the move, target -2) ----
@@ -394,8 +395,9 @@ class Sec5:
                         self.usedFvg.push(best.bar if buy else -best.bar)
                         if self.usedFvg.size() > 100:
                             self.usedFvg.shift()
-                        out = self.f_signalCont(lg, best, "silver_bullet" if self.winNow == "" else self.winNow, lg.sbExt, twoPx,
-                                                "silver_bullet", drHi, drHiB, drLo, drLoB)
+                        self.rqs.append((lg, best, "silver_bullet" if self.winNow == "" else self.winNow, lg.sbExt, twoPx,
+                                         "silver_bullet", drHi, drHiB, drLo, drLoB))
+                        out = True
         return out
 
     # ---- L2599: one bar of every leg of a book: expiry / orphan FS, deeper hunt, hunt-leg + silver-bullet + zone steps ----
@@ -432,10 +434,12 @@ class Sec5:
                         # note: a leg that expired on this bar (lg.done) still gets f_stepCont (it does not test lg.done), like the Pine
                         fsOnly = lg.hasFs and not lg.fs and self.iFsOnly != "Off"
                         fsAll = fsOnly and self.iFsOnly == "Every setup of the main leg"
-                        if not firedC and self.iHunt and not lg.cDone and not fsAll:
-                            firedC = self.f_stepCont(lg)
-                        if not firedC and self.iSbEntry and not lg.sbDone and not fsAll:
-                            firedC = self.f_stepSb(lg)
+                        for step in (0, 1):  # Pine: one f_signalCont call site for the hunt-leg / silver-bullet setups
+                            if not firedC and not fsAll and ((self.iHunt and not lg.cDone) if step == 0 else (self.iSbEntry and not lg.sbDone)):
+                                self.rqs = []
+                                asked = self.f_stepCont(lg) if step == 0 else self.f_stepSb(lg)
+                                if asked and len(self.rqs) > 0:
+                                    firedC = self.f_signalCont(*self.rqs.pop())
                         if not fired and not lg.done and not fsOnly:
                             fired = self.f_stepLeg(lg)
         return fired
