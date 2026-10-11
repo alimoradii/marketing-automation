@@ -101,7 +101,7 @@ float  iMinStop  = input.float(3.0, "Min stop distance (pips) — not in notes",
 int    iValidMin = input.int(120, "Limit order valid (min) — not in notes", group = G_E)
 
 const string G_D = "📏 Dealing range (MZ ICT knowledge base)"
-bool   iShowDR   = input.bool(true, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
+bool   iShowDR   = input.bool(false, "Draw the dealing range of each signal (BSL top, SSL bottom, premium / discount)", group = G_D, tooltip = "Two boxes from the BSL and SSL swings of the setup to the signal: premium above the 50%, discount below. A buy is only given in discount, a sell only in premium (setting \"Dealing range\" above).")
 const string DRL_ANY   = "Any swing high / low (same timeframe)"
 const string DRL_EXT   = "External liquidity: previous day / week highs & lows"
 const string DRU_CHART = "Dealing range on the chart (BSL ↔ SSL)"
@@ -150,30 +150,30 @@ string iAlFmt     = input.string("Text (phone / popup)", "Alert message", option
 
 const string G_V = "🎨 Visuals"
 bool  iShowLegs  = input.bool(true, "SDP legs with fib levels", group = G_V)
-bool  iShowBoxes = input.bool(false, "Zone / FVG rectangles", group = G_V)
+bool  iShowBoxes = input.bool(true, "SDP zones shaded (-1..-1.5, -2..-2.5, -3.5..-4)", group = G_V)
 bool  iShowMss   = input.bool(true, "MSS line (red, like the notes)", group = G_V)
 bool  iMssDraw   = input.bool(true, "Draw an SDP only after its MSS (price crossed its 0)", tooltip = "Videos (SDP, 07:10): we draw the SDP once we are sure the stop hunt happened - when there is a market structure shift.", group = G_V)
-bool  iFibTv     = input.bool(true, "SDP like the TradingView fib tool (lines only as wide as 0..1, solid, not extended)", group = G_V)
-int   iFibLen    = input.int(20, "Fib line length after fib 1 (bars, 0 = up to price)", minval = 0, group = G_V)
+bool  iFibTv     = input.bool(false, "SDP like the TradingView fib tool (lines only as wide as 0..1)", group = G_V, tooltip = "Off (default): the levels 1, 0, -1 .. -4 run from the leg to the current candle, labelled at the right, so the zones are visible where price is.")
+int   iFibLen    = input.int(0, "Fib line length after fib 1 (bars, 0 = up to price)", minval = 0, group = G_V)
 string iView     = input.string("Clean", "Display", options = ["Clean", "Full"], tooltip = "Clean: one SDP per side (the one in a setup, otherwise the newest) + the legs of open trades and of the newest signal; only the newest signal keeps its entry-leg SDP; the last 4 MSS. Full: every leg the bot tracks, with finished legs kept (see History).", group = G_V)
 string iTxtSize  = input.string("Normal", "SDP text size", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iSigSize  = input.string("Normal", "Signal text size (box, Entry / SL / TP, markers)", options = ["Small", "Normal", "Large", "Huge"], group = G_V)
 string iNoteSize = input.string("Tiny", "Notes / MSS text size", options = ["Tiny", "Small", "Normal", "Large"], group = G_V)
 string iDashSize = input.string("Small", "Dashboard text size", options = ["Small", "Normal", "Large"], group = G_V)
 string iDashPos  = input.string("Top right", "Dashboard position", options = ["Top right", "Bottom right", "Bottom left", "Top left"], group = G_V)
-bool  iFibLeft   = input.bool(true, "Fib labels on the left (like the TradingView fib tool)", group = G_V)
+bool  iFibLeft   = input.bool(false, "Fib labels on the left (like the TradingView fib tool)", group = G_V)
 string iHist     = input.string("All legs", "History (Full display): keep finished legs", options = ["All legs", "Traded legs only", "Live legs only"], inline = "hist", group = G_V)
 int   iHistN     = input.int(20, "last", minval = 1, maxval = 40, inline = "hist", tooltip = "TradingView allows 500 lines/labels per indicator, so only the most recent finished legs are kept. Each one shows why it ended without a trade.", group = G_V)
 bool  iShowTrade = input.bool(true, "Entry / SL / targets", group = G_V)
 bool  iShowMO    = input.bool(true, "NY Open line", group = G_V)
 bool  iShowWin   = input.bool(true, "Shade trade windows", group = G_V)
-bool  iShowRej   = input.bool(true, "Show why an MSS / setup gave no signal", group = G_V)
+bool  iShowRej   = input.bool(false, "Show why an MSS / setup gave no signal", group = G_V)
 int   iNotesN    = input.int(3, "…keep only the last N notes (0 = all)", minval = 0, group = G_V)
 int   iDrawDays  = input.int(2, "SDPs / MSS / notes / signal lines: only the last N days (0 = all)", minval = 0, group = G_V, tooltip = "Signal boxes and entry arrows are kept for the whole history (grey = cancelled / expired, with the result on filled ones).")
 bool  iCompact   = input.bool(true, "Compact signal box (details in the tooltip - hover the box)", group = G_V)
 bool  iOldSig    = input.bool(true, "Older signals as small ▲ / ▼ markers with the result", group = G_V, tooltip = "Signals older than the N days above are drawn as a small marker under / over the candle; it turns into the result (+4.0R / -1.0R).")
 bool  iOldLbl    = input.bool(false, "…older signals: Entry / SL / TP price text too (uses many labels)", group = G_V, tooltip = "TradingView keeps at most 500 labels per indicator; with this on, the oldest signal markers drop off the chart.")
-bool  iOldCanc   = input.bool(true, "…also keep cancelled / expired older signals (grey ✕ / ⌛)", group = G_V)
+bool  iOldCanc   = input.bool(false, "Keep cancelled / expired signals in full (grey lines and box)", group = G_V, tooltip = "Off: a cancelled / expired signal leaves only a small grey ✕ / ⌛ at its candle (hover it for the details); older ones disappear.")
 bool  iShowDash  = input.bool(true, "Dashboard", group = G_V)
 int   iLineBars  = input.int(20, "Signal line length (bars)", minval = 5, maxval = 400, group = G_V)
 string iDayLine  = input.string("NY midnight", "Yellow line at each day start", options = ["Off", "NY midnight", "Daily candle (17:00 NY)"], group = G_V)
@@ -1078,15 +1078,16 @@ f_drawLeg(Leg lg) =>
                 lg.lns.push(line.new(x1, y, x2, y, color = color.new(color.gray, k < 0 ? 20 : 45), style = line.style_solid))
             else if k <= 0.0 or k >= 1.0
                 lg.lns.push(line.new(x1, y, x2, y, color = color.new(color.gray, k < 0 ? 20 : 45), style = k == 0.0 or k == 1.0 ? line.style_solid : line.style_dotted))
-            string t = str.tostring(k) + " (" + f_num(y) + ")" + (k == 1.0 ? (lg.fs ? "  Failure Swing" : lg.bear ? "  BSL hunt" : "  SSL hunt") : "")
-            label lb = iFibLeft ? label.new(x1, y, t, style = label.style_label_right, color = color.new(color.black, 100), textcolor = color.silver, size = sTxt) : label.new(x2, y, t, style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.silver, size = sTxt)
-            lg.lbs.push(lb)
+            if iFibTv or k <= 0.0 or k >= 1.0  // extended levels: labels only on the drawn lines
+                string t = str.tostring(k) + " (" + f_num(y) + ")" + (k == 1.0 ? (lg.fs ? "  Failure Swing" : lg.bear ? "  BSL hunt" : "  SSL hunt") : "")
+                label lb = iFibLeft ? label.new(x1, y, t, style = label.style_label_right, color = color.new(color.black, 100), textcolor = color.silver, size = sTxt) : label.new(x2, y, t, style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.silver, size = sTxt)
+                lg.lbs.push(lb)
         if iShowBoxes
-            lg.bxs.push(box.new(lg.oneBar, f_fib(lg, -iZ1a), x2, f_fib(lg, -iZ1b), border_color = color.new(color.orange, 70), bgcolor = color.new(color.orange, 88), text = (lg.fs ? "FS " : "") + (lg.bear ? "Re-distribution" : "Re-accumulation"), text_size = sBox, text_color = color.orange))
+            lg.bxs.push(box.new(lg.oneBar, f_fib(lg, -iZ1a), x2, f_fib(lg, -iZ1b), border_color = color.new(color.orange, 70), bgcolor = color.new(color.orange, 90)))  // -1..-1.5 (partial)
         if iShowBoxes
-            lg.bxs.push(box.new(lg.oneBar, f_fib(lg, -iZ2a), x2, f_fib(lg, -iZ2b), border_color = color.new(col, 60), bgcolor = color.new(col, 85), text = (lg.fs ? "FS " : "") + "Retrace / Reversal", text_size = sBox, text_color = col))
+            lg.bxs.push(box.new(lg.oneBar, f_fib(lg, -iZ2a), x2, f_fib(lg, -iZ2b), border_color = color.new(col, 60), bgcolor = color.new(col, 86)))  // -2..-2.5 reversal
         if iShowBoxes
-            lg.bxs.push(box.new(lg.oneBar, f_fib(lg, -iZ3a), x2, f_fib(lg, -iZ3b), border_color = color.new(col, 40), bgcolor = color.new(col, 75), text = (lg.fs ? "FS " : "") + "Final Reversal", text_size = sBox, text_color = col))
+            lg.bxs.push(box.new(lg.oneBar, f_fib(lg, -iZ3a), x2, f_fib(lg, -iZ3b), border_color = color.new(col, 40), bgcolor = color.new(col, 78)))  // -3.5..-4 final reversal
     lg.lns.size()
 
 f_extendLeg(Leg lg) =>
@@ -1503,7 +1504,7 @@ f_sigSdp(float one, float zero, int b1, int b0, bool full, color col, string tag
         f_clearSigSdp()
     int x1 = b0 >= 0 ? math.min(b0, b1) : b1
     int x2 = math.max(math.max(b0, b1), x1 + 2)
-    array<float> ks = full ? array.from(1.0, 0.786, 0.705, 0.618, 0.5, 0.0, -1.0, -1.5, -2.0, -2.5) : array.from(1.0, 0.0, -1.0, -2.0, -2.5)
+    array<float> ks = array.from(1.0, 0.0, -1.0, -2.0)  // the levels the targets come from (the SDP of the leg itself shows the rest)
     for k in ks
         float y = zero + k * (one - zero)
         line ln = line.new(x1, y, x2, y, color = color.new(col, k == 0.0 or k == 1.0 ? 15 : full ? 40 : 55))
@@ -1555,7 +1556,9 @@ f_extendLines(Trade tr) =>
     tr.state
 f_endLines(Trade tr, string ev) =>
     if not na(tr.lns) and (ev == "cancel" or ev == "expired" or ev == "void")
-        bool drop = (tr.mini and not iOldCanc) or iOnRetrace
+        bool drop = not iOldCanc or iOnRetrace
+        if drop and iClean and tr.legBar == st.lastSig
+            f_clearSigSdp()  // its entry-leg SDP goes with it
         for ln in tr.lns
             if drop
                 line.delete(ln)
@@ -1594,6 +1597,16 @@ f_markBox(Trade tr, string ev, float r) =>
             label.set_text(tr.lab, arrow + " " + tr.kind + " " + f_rTxt(r) + "R")
             label.set_textcolor(tr.lab, r > 0.05 ? cBuy : r < -0.05 ? cSell : color.gray)
             label.set_tooltip(tr.lab, (ev == "tp" ? "TP " : ev == "sl" ? "SL " : "closed (news) ") + f_rTxt(r) + "R\n" + tr.tip)
+    else if not na(tr.lab) and not iOldCanc and (ev == "cancel" or ev == "expired" or ev == "void")
+        int lx = label.get_x(tr.lab)  // only a small grey marker at the signal candle stays (details in its tooltip)
+        int ago = math.max(0, math.min(bar_index - lx, 1500))
+        label.set_xy(tr.lab, lx, tr.sell ? high[ago] : low[ago])
+        label.set_text(tr.lab, (tr.sell ? "▼" : "▲") + (ev == "expired" ? " ⌛" : " ✕"))
+        label.set_style(tr.lab, tr.sell ? label.style_label_down : label.style_label_up)
+        label.set_color(tr.lab, color.new(color.black, 100))
+        label.set_textcolor(tr.lab, color.new(color.gray, 30))
+        label.set_size(tr.lab, size.small)
+        label.set_tooltip(tr.lab, (ev == "cancel" ? "CANCELLED - TP before entry\n" : ev == "void" ? "NOT ENTERED - opened beyond the stop\n" : "EXPIRED - not filled\n") + tr.tip)
     else if not na(tr.lab)
         string tag = ev == "cancel" ? "❌ CANCELLED - TP before entry, do not enter" : ev == "void" ? "❌ NOT ENTERED - opened beyond the stop" : ev == "expired" ? "⌛ EXPIRED - not filled, do not enter" : ev == "filled" ? "✅ FILLED" : ev == "tp" ? "🎯 TP " + f_rTxt(r) + "R" : ev == "sl" ? "🛑 SL " + f_rTxt(r) + "R" : ev == "close" ? "📰 closed (news) " + f_rTxt(r) + "R" : ""
         if tag != ""
@@ -2783,4 +2796,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2786 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2799 — if your editor stops before this line, the copy was cut off =====
