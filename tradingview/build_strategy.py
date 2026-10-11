@@ -62,28 +62,25 @@ f_stratEvent(Trade tr, string ev) =>
         if unfilled or ev == "close"  // news, or the indicator never entered: close whatever the emulator holds (no-op if nothing)
             strategy.close(tr.id, comment = ev == "close" ? "news" : ev == "void" ? "opened past SL" : ev)
         if unfilled  // and no order may stay behind
-            strategy.cancel(tr.id)
             strategy.cancel(tr.id + " p")
             strategy.cancel(tr.id + " x")
         if unfilled or ev == "tp" or ev == "sl" or ev == "close"
             strategy.cancel(tr.id)  // an entry the emulator has not filled yet
             stratLive.remove(k)
     ev
-// the indicator takes no fill after its last valid bar: cancel the entry at that bar's close so the emulator cannot fill it later
-for t in trades
-    if t.state == 0 and bar_index >= t.validUntil and stratLive.includes(t.id)
-        strategy.cancel(t.id)
-// a trade the indicator dropped without an event does not block the next signal
+// (stratLive holds one id at most) the indicator takes no fill after its last valid bar: cancel the entry at that bar's close
+// so the emulator cannot fill it later; a trade the indicator dropped without an event does not block the next signal
 if stratLive.size() > 0
-    for i = stratLive.size() - 1 to 0
-        string sid = stratLive.get(i)
-        bool alive = false
-        for t in trades
-            if t.id == sid
-                alive := true
-        if not alive
-            strategy.cancel(sid)
-            stratLive.remove(i)
+    string sid = stratLive.first()
+    bool alive = false
+    for t in trades
+        if t.id == sid
+            alive := true
+            if t.state == 0 and bar_index >= t.validUntil
+                strategy.cancel(sid)
+    if not alive
+        strategy.cancel(sid)
+        stratLive.clear()
 // ==== STRATEGY HOOKS END'''
 
 

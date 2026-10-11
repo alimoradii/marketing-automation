@@ -1,6 +1,6 @@
 """Section 5 of the MZ_SDP.pine port: Pine lines 2229-2784.
 
-the hunt-leg / silver-bullet signal f_signalCont (Trade + siglog), the hunt-leg step f_stepCont, the silver-bullet step
+the hunt-leg step f_stepCont, the silver-bullet step
 f_stepSb, f_stepBook, leg upkeep (f_hasTrade, f_showSig, f_freezeLeg, f_hide, f_primary, f_upkeep; drawings dropped, the
 lns / lbs / bxs sizes kept like sec2 because the Clean-view logic tests them), the per-bar loops over both sides and the
 Clean-view history pruning. The dashboard (L2734-2783: table, f_row, f_contTxt, f_bookTxt) is display only and dropped
@@ -22,127 +22,6 @@ def _nsz(a):
 
 
 class Sec5:
-    # ---- L2230: signal of the hunt-leg setup ("continuation") or the silver bullet at -1..-1.5 ("silver_bullet") ----
-    def f_signalCont(self, lg, g, win, stopRef, mainPx, setupName, drHi, drHiB, drLo, drLoB):
-        PIP = self.PIP
-        isSb = setupName == "silver_bullet"
-        buy = not lg.bear
-        side = "buy" if buy else "sell"
-        rej = ""
-        entry = ((g.top if buy else g.bottom) if self.iEdge == "Proximal" else (g.top + g.bottom) / 2)
-        market = False
-        if ((self.close <= entry) if buy else (self.close >= entry)) or (self.iMktEntry and not self.iOnRetrace):
-            entry = self.close
-            market = True
-        sRef = lg.one if na(stopRef) else stopRef
-        # hunt setup entered on the lower timeframe: targets on the LTF leg (hunt extreme -> LTF swing it broke), like the zone setup
-        ltf = (not isSb) and lg.c5.mss
-        lz = lg.c5.zero if ltf else lg.zero
-        l1 = sRef if ltf else lg.one
-        drEq = (drHi + drLo) / 2
-        if (self.useDR or (self.iMktEntry and not self.iOnRetrace)) and ((entry >= drEq) if buy else (entry <= drEq)):
-            rej = "entry in " + ("premium" if buy else "discount") + " of the dealing range (50% = " + self.f_num(drEq) + ")"
-        if rej == "":
-            rej = self.f_htfRej(buy, entry)
-        if rej == "" and not self.TFOK:
-            rej = "chart is " + self.timeframe_period + "m - signals only on 15m (setting)"
-        stop = (sRef - self.iSlPips * PIP) if buy else (sRef + self.iSlPips * PIP)
-        if rej == "" and self.iOneSwing and self.usedStops.includes(pround(stop / PIP * 10) * (1 if buy else -1)):
-            rej = "this stop-hunt swing already gave a trade (one trade per swing)"
-        risk = (entry - stop) if buy else (stop - entry)
-        main = NA
-        partial = lz - self.iPart * (l1 - lz)
-        partial = (partial - self.iTpBuf * PIP) if buy else (partial + self.iTpBuf * PIP)
-        rr = 0.0
-        tpWhy = ""
-        tpTag = ""
-        if risk <= 0:
-            rej = "invalid risk"
-        elif self.iUseMinStop and risk < self.iMinStop * PIP:
-            rej = "stop too tight (" + tstr(risk / PIP, "0.0") + " pips)"
-        if rej == "":
-            # silver bullet keeps its -2 (the move goes on); the hunt setup takes the first SDP zone of the hunt leg in premium / discount
-            m0, w0, g0 = self.f_mainTarget(buy, entry, risk, lz, l1, NA if isSb else drEq, drHi if buy else drLo,
-                                           (lz - self.iTgt * (l1 - lz)) if na(mainPx) else mainPx,
-                                           "-" + tstr(self.iZ2a if isSb else self.iTgt))
-            main = m0
-            tpWhy = w0
-            tpTag = g0
-            if (main <= entry) if buy else (main >= entry):
-                rej = "target not beyond entry"
-            if not ((entry < partial and partial < main) if buy else (main < partial and partial < entry)):
-                partial = NA
-            rr = ((main - entry) if buy else (entry - main)) / risk
-            if rej == "" and self.iMinRR > 0 and rr < self.iMinRR:
-                rej = "R:R 1:" + tstr(rr, "0.0") + " below the minimum 1:" + tstr(self.iMinRR, "0.0") + tpWhy
-        warn = ""
-        if rej == "" and self.MOF and not na(self.midOpen) and ((entry >= self.midOpen) if buy else (entry <= self.midOpen)):
-            if self.iMOHard:  # (the zone setup also rejects on STRICT; this one only on iMOHard, like the Pine)
-                rej = "entry " + ("above" if buy else "below") + " NY Open " + self.f_num(self.midOpen)
-            else:
-                warn += "wrong side of NY Open; "
-        eqLeft = ""
-        if rej == "" and self.iUB:
-            farPx = (stop - self.iUBPips * PIP) if buy else (stop + self.iUBPips * PIP)
-            eqName = "Equal Lows" if buy else "Equal Highs"
-            for l in self.levels:
-                near = l.bsl != buy and ((l.price >= farPx and l.price <= entry) if buy else (l.price <= farPx and l.price >= entry))
-                if near and (l.kind == "session" or l.kind == "day" or l.kind == "week") and warn == "":
-                    if self.STRICT:
-                        rej = "unfinished business: " + l.name + " " + self.f_num(l.price) + " not taken"
-                        break
-                    else:
-                        warn += "unfinished business: " + l.name + " " + self.f_num(l.price) + "; "
-                if near and l.name == eqName and eqLeft == "":
-                    eqLeft = l.name + " " + self.f_num(l.price)
-            if rej == "" and eqLeft != "" and self.iUBEq and self.STRICT:
-                rej = "unfinished business: " + eqLeft + " not taken"
-        if rej == "" and self.iHtfReq and ne(self.htfTrend, (1 if buy else -1)):
-            rej = "against higher timeframe"
-        if rej == "":
-            nws = self.f_newsAt(self.time_close) if self.iUseNews else ""
-            if nws != "":
-                rej = "news: " + nws
-        emitted = False
-        if rej != "":
-            self.st.rejected += 1
-            if self.iShowRej:
-                self.f_grayNote(buy, ("silver bullet setup: " if isSb else "hunt setup: ") + rej)
-        else:
-            st = self.st
-            htfOk = self.iUseHTF and self.htfTrend == (1 if buy else -1)
-            sbOk = self.iUseSB and self.inSB
-            maxScore = (1 if self.iUseSB else 0) + (1 if self.iUseHTF else 0)
-            score = (1 if htfOk else 0) + (1 if sbOk else 0)
-            grade = "A+" if score >= 2 else "A" if score == 1 else "B"
-            if eqLeft != "" or warn != "":
-                grade = "B"
-            emitted = True
-            lg.signaled = True
-            st.dayCount += 1
-            st.signals += 1
-            sid = self.TK + "-" + self.timeframe_period + "-" + side + "-" + _utc_stamp5(self.time_close) + "-" + tstr(st.signals)  # unique: two setups can signal on one bar
-            trNew = Trade(sid, not buy, entry, stop, partial, main, self.bar_index + self.validBars, market, legBar=lg.oneBar)
-            trNew.warn = self.f_warn(buy, entry)
-            self.trades.push(trNew)
-            self.f_stratOpen(trNew, grade)
-            kind = "SB" if isSb else (("hunt " + self.iLtfTf + "m") if ltf else "hunt")  # = trNew.kind of the small marker (L2357)
-            self.siglog.append(dict(id=sid, bar=self.bar_index, time=self.time, side='sell' if trNew.sell else 'buy',
-                                    entry=trNew.entry, stop=trNew.stop, tp1=trNew.tp1, tpMain=trNew.tpMain, market=trNew.market,
-                                    kind=kind, grade=grade, warn=trNew.warn,
-                                    setup=setupName, zone="", ltf=ltf,
-                                    score=score, maxScore=maxScore, rr=rr, tpTag=tpTag, legBar=lg.oneBar, tz=lz, tzB=(lg.c5.zeroBar if ltf else lg.zeroBar),
-                                    drHi=drHi, drLo=drLo, win=win))
-            self.usedStops.push(pround(stop / PIP * 10) * (1 if buy else -1))
-            if self.usedStops.size() > 50:
-                self.usedStops.shift()
-            st.liveLeg = lg.oneBar
-            st.lastSig = lg.oneBar
-            # L2334-2368: zoneTxt / ltfTxt, trade lines (f_tradeLines), dealing-range boxes (f_drawDR), FVG box (f_drawFvg),
-            # f_clearSigSdp / entry-leg SDP (f_sigSdp), signal label (trNew.lab / tip; DRAW is True so mini / kind stay unset)
-            # and alerts: drawing / alerts only
-        return emitted
-
     # ---- L2371: hunt-leg setup: fib 1 hunted, MSS of the ITH/ITL (or fib 0) with displacement, FVG in discount / premium ----
     def f_stepCont(self, lg):
         out = False
@@ -226,21 +105,11 @@ class Sec5:
             eq = (hl + (farD if ltf else lg.cFar)) / 2
             dispEndC = farDBar if self.iFvgDisp else bi
             # dealing range: SSL = the hunt (buy), BSL = the last opposite stop hunt beyond it, else fib 0; wider if price went past it
-            self.f_oppHunt(lg)
-            base = lg.zero if na(lg.oppPx) else lg.oppPx
-            baseB = lg.zeroBar if na(lg.oppPx) else lg.oppBar
+            base = self.f_oppHunt(lg)
             farOut = (farC > base) if buy else (farC < base)
-            drHi = (farC if farOut else base) if buy else hl
-            drHiB = (farCBar if farOut else baseB) if buy else hlB
-            drLo = hl if buy else (farC if farOut else base)
-            drLoB = hlB if buy else (farCBar if farOut else baseB)
+            drHi = self.dr.hi if self.drOn else (farC if farOut else base) if buy else hl
+            drLo = self.dr.lo if self.drOn else hl if buy else (farC if farOut else base)
             drEq = (drHi + drLo) / 2
-            if self.DR_CHART and self.f_drReady():  # the dealing range on the chart (BSL <-> SSL) as it is now
-                drHi = self.dr.hi
-                drHiB = self.dr.hiB
-                drLo = self.dr.lo
-                drLoB = self.dr.loB
-                drEq = (drHi + drLo) / 2
             eqD = (pmin(eq, drEq) if buy else pmax(eq, drEq)) if self.useDR else eq
             best = self.f_mssMkt(buy, eqD) if lg.cMssBar == bi else None
             if best is None:
@@ -256,16 +125,15 @@ class Sec5:
             if best is None or self.winNow == "":
                 go = False
             if go and self.MOF and (self.STRICT or self.iMOHard) and not na(self.midOpen):
-                ent = ((best.top if buy else best.bottom) if self.iEdge == "Proximal" else (best.top + best.bottom) / 2)
+                ent = self.f_gapEntry(best, buy)
                 if ((self.close <= ent) if buy else (self.close >= ent)) or (self.iMktEntry and not self.iOnRetrace):
                     ent = self.close
                 if (ent >= self.midOpen) if buy else (ent <= self.midOpen):
                     go = False
                     self.f_note(lg, buy, "MSS ✓ · FVG ✓ · entry " + ("below" if buy else "above") + " NY Open ✕ (waiting)")
             if go:
-                oppBook = self.bearLegs if buy else self.bullLegs
-                for x in (PArr() if lg.inZone else oppBook):  # a hunt at a reversal zone is not "against"
-                    if (self.AGL >= 0 and not x.done and x.oneBar < lg.oneBar
+                for x in (self.bearLegs if buy else self.bullLegs):  # a hunt at a reversal zone (lg.inZone) is not "against"
+                    if (self.AGL >= 0 and not lg.inZone and not x.done and x.oneBar < lg.oneBar
                             and ((lg.one < x.zero and lg.one > self.f_lvl(x, self.AGL if self.AGL > 0 else self.iZ2a)) if buy
                                  else (lg.one > x.zero and lg.one < self.f_lvl(x, self.AGL if self.AGL > 0 else self.iZ2a)))):
                         lg.cDone = True
@@ -277,7 +145,7 @@ class Sec5:
             if go:
                 lg.cDone = True
                 self.f_useGap(best, buy)
-                self.rqs.append((lg, best, self.winNow, hl if ltf else NA, NA, "continuation", drHi, drHiB, drLo, drLoB))
+                self.rqs.append((lg, best, self.winNow, hl if ltf else lg.one, NA, "continuation", drHi, drLo))
                 out = True
         return out
 
@@ -309,19 +177,8 @@ class Sec5:
                 lg.sbMss = False
             else:
                 if not lg.sbMss:
-                    pb = self.shB if buy else self.slB
-                    pp = self.shP if buy else self.slP
-                    bI = -1
-                    pI = NA
-                    n = pb.size()
-                    if n > 0:
-                        for k in prange(n - 1, 0):
-                            b = pb.get(k)
-                            if b < lg.sbExtBar:
-                                if b >= lg.sbTouch - self.iIthLB:
-                                    bI = b
-                                    pI = pp.get(k)
-                                break
+                    pI, b0 = self.f_lastBefore(self.shB if buy else self.slB, self.shP if buy else self.slP, lg.sbExtBar)
+                    bI = b0 if b0 >= lg.sbTouch - self.iIthLB else -1
                     if bI >= 0 and ((self.high > pI) if buy else (self.low < pI)):
                         ob = bi - lg.sbExtBar
                         disp = not self.iDisp or self.f_disp(buy, ob, ob - 1)
@@ -337,23 +194,11 @@ class Sec5:
                     eq = (lg.sbExt + far) / 2
                     # dealing range: the pullback extreme to the top (buy) / bottom (sell) of the move since the hunt
                     rTop = self.high if buy else self.low
-                    rTopB = bi
                     for k in prange(0, bi - lg.oneBar):
-                        j = bi - k
-                        if (H[j] > rTop) if buy else (L[j] < rTop):
-                            rTop = H[j] if buy else L[j]
-                            rTopB = bi - k
-                    drHi = rTop if buy else lg.sbExt
-                    drHiB = rTopB if buy else lg.sbExtBar
-                    drLo = lg.sbExt if buy else rTop
-                    drLoB = lg.sbExtBar if buy else rTopB
+                        rTop = pmax(rTop, H[bi - k]) if buy else pmin(rTop, L[bi - k])
+                    drHi = self.dr.hi if self.drOn else rTop if buy else lg.sbExt
+                    drLo = self.dr.lo if self.drOn else lg.sbExt if buy else rTop
                     drEq = (drHi + drLo) / 2
-                    if self.DR_CHART and self.f_drReady():  # the dealing range on the chart (BSL <-> SSL) as it is now
-                        drHi = self.dr.hi
-                        drHiB = self.dr.hiB
-                        drLo = self.dr.lo
-                        drLoB = self.dr.loB
-                        drEq = (drHi + drLo) / 2
                     best = self.f_bestGap(buy, lg.sbExtBar + 2, bi, True, eq, drEq)
                     if best is not None:
                         lg.sbDone = True
@@ -361,7 +206,7 @@ class Sec5:
                         if self.usedFvg.size() > 100:
                             self.usedFvg.shift()
                         self.rqs.append((lg, best, "silver_bullet" if self.winNow == "" else self.winNow, lg.sbExt, twoPx,
-                                         "silver_bullet", drHi, drHiB, drLo, drLoB))
+                                         "silver_bullet", drHi, drLo))
                         out = True
         return out
 
@@ -399,14 +244,19 @@ class Sec5:
                         # note: a leg that expired on this bar (lg.done) still gets f_stepCont (it does not test lg.done), like the Pine
                         fsOnly = lg.hasFs and not lg.fs and self.iFsOnly != "Off"
                         fsAll = fsOnly and self.iFsOnly == "Every setup of the main leg"
-                        for step in (0, 1):  # Pine: one f_signalCont call site for the hunt-leg / silver-bullet setups
-                            if not firedC and not fsAll and ((self.iHunt and not lg.cDone) if step == 0 else (self.iSbEntry and not lg.sbDone)):
+                        # the hunt-leg setup, then the silver bullet (only if the first gave no signal), then the zone
+                        # reversal; Pine: one f_signal call site
+                        for step in (0, 1, 2):
+                            if ((not fired and not lg.done and not fsOnly) if step == 2 else
+                                    (not firedC and not fsAll and ((self.iHunt and not lg.cDone) if step == 0 else (self.iSbEntry and not lg.sbDone)))):
                                 self.rqs = []
-                                asked = self.f_stepCont(lg) if step == 0 else self.f_stepSb(lg)
+                                asked = self.f_stepCont(lg) if step == 0 else self.f_stepSb(lg) if step == 1 else self.f_stepLeg(lg)
                                 if asked and len(self.rqs) > 0:
-                                    firedC = self.f_signalCont(*self.rqs.pop())
-                        if not fired and not lg.done and not fsOnly:
-                            fired = self.f_stepLeg(lg)
+                                    ok = self.f_signal(*self.rqs.pop())
+                                    if step == 2:
+                                        fired = ok
+                                    else:
+                                        firedC = ok
         return fired
 
     # ---- L2637 ----
@@ -430,7 +280,7 @@ class Sec5:
         x2 = pmin(self.bar_index, self.f_fibEnd(lg))
         return x2
 
-    # ---- L2657: deletes the drawings and empties the arrays (their sizes are tested in f_upkeep / f_signalCont) ----
+    # ---- L2657: deletes the drawings and empties the arrays (their sizes are tested in f_upkeep / f_signal) ----
     def f_hide(self, lg):
         if lg.lns is not None:
             lg.lns.clear()
@@ -469,7 +319,10 @@ class Sec5:
                         self.f_drawLeg(lg)
                 if not lg.done:
                     if not self.iClean:
-                        self.f_extendLeg(lg)
+                        if _nsz(lg.lns) == 0:  # a new leg, or one from before the drawing window when it reaches it
+                            self.f_drawLeg(lg)
+                        else:
+                            self.f_extendLeg(lg)
                     elif k == prim or self.f_showSig(lg):
                         if _nsz(lg.lns) == 0:
                             self.f_drawLeg(lg)

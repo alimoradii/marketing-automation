@@ -25,23 +25,21 @@ class Sec3:
                             dup = True
                     lg = Leg(hu.bear, hu.one, hu.zero, hu.bar, self.bar_index, hu.names, drOne=hu.one, zeroBar=hu.zeroBar,
                              z5=Ltf(), c5=Ltf(), lns=PArr(), lbs=PArr(), bxs=PArr())
-                    took = False
+                    took = PArr()  # same-side legs this deeper hunt replaces
                     if not dup:
                         lg.inZone = self.f_inPriorZone(hu.bear, hu.one, hu.bar)
                         if self.iSupersede:
                             for x in book:
                                 if (not x.done and not x.fs and x.zone == "" and not x.signaled and x.oneBar < hu.bar
                                         and (((hu.one > x.one) if hu.bear else (hu.one < x.one)) or pabs(hu.zero - x.zero) <= self.iEqPips * self.PIP)):
-                                    took = True
+                                    took.push(x)
                                     lg.inZone = lg.inZone or x.inZone
-                    if not dup and self.iChain and not lg.inZone and not hu.external and not took:
+                    if not dup and self.iChain and not lg.inZone and not hu.external and took.size() == 0:
                         dup = True
-                    if not dup and took:
-                        for x in book:
-                            if (not x.done and not x.fs and x.zone == "" and not x.signaled and x.oneBar < hu.bar
-                                    and (((hu.one > x.one) if hu.bear else (hu.one < x.one)) or pabs(hu.zero - x.zero) <= self.iEqPips * self.PIP)):
-                                x.done = True
-                                x.endWhy = "replaced by the last stop hunt"
+                    if not dup:
+                        for x in took:
+                            x.done = True
+                            x.endWhy = "replaced by the last stop hunt"
                     if not dup:
                         if self.useHZ and not lg.inZone:
                             lg.cDone = True
@@ -54,9 +52,7 @@ class Sec3:
                             self.zrOne.shift()
                             self.zrZero.shift()
                             self.zrBar.shift()
-                        if not self.iClean:
-                            self.f_drawLeg(lg)
-                        book.push(lg)
+                        book.push(lg)  # (drawn by f_upkeep later on this bar)
                         live = 0
                         for x in book:
                             if not x.done and not x.fs:
@@ -88,8 +84,6 @@ class Sec3:
                 if not na(pOne):
                     lg = Leg(hu.bear, hu.one, hu.zero, hu.bar, self.bar_index, hu.names, cDone=True, fs=True, parentBar=hu.parent,
                              drOne=pOne, zeroBar=hu.zeroBar, z5=Ltf(), c5=Ltf(), lns=PArr(), lbs=PArr(), bxs=PArr())
-                    if not self.iClean:
-                        self.f_drawLeg(lg)
                     book.push(lg)
             self.fsq.clear()
 
@@ -121,6 +115,7 @@ class Sec3:
             dr.loWhy = "taking the range low"
         # L1362-1412: if iShowLDR and DRAW and f_drReady() -> lines / label / boxes of the live range (drawing only)
         dr.isNew = False
+        self.drOn = self.DR_CHART and self.f_drReady()  # the dealing range on the chart (BSL <-> SSL) as it is now: the signals use it
 
     # ---- L1415 ----
     def f_dBiasTxt(self, buy):
@@ -248,38 +243,6 @@ class Sec3:
         self.sigSdpL.clear()
         self.sigSdpT.clear()
         return self.sigSdpL.size()
-
-    # ---- L1500: drawing only; returns ks.size() like the Pine ----
-    def f_sigSdp(self, one, zero, b1, b0, full, col, tag):
-        if self.iClean:
-            self.f_clearSigSdp()
-        return 10 if full else 5
-
-    # ---- L1517: entry / SL / TP lines + labels; only the array sizes are kept (placeholders), nothing trades on them ----
-    def f_tradeLines(self, tr, full, tpWhy):
-        tr.lns = PArr()
-        tr.lls = PArr()
-        tr.lns.push(0)
-        tr.lns.push(0)
-        tr.lns.push(0)
-        if full and not na(tr.tp1):
-            tr.lns.push(0)
-        if full or self.iOldLbl:
-            tr.lls.push(0)
-            tr.lls.push(0)
-            tr.lls.push(0)
-        if full:
-            if not na(tr.tp1):
-                tr.lls.push(0)
-        return tr.lns.size()
-
-    # ---- L1536: dealing-range boxes of a signal (drawing only; placeholders keep the size) ----
-    def f_drawDR(self, tr, hi, hiB, lo, loB, buy):
-        tr.bxs = PArr()
-        if self.iShowDR and self.DRAW and not na(hi) and not na(lo) and hi > lo:
-            tr.bxs.push(0)
-            tr.bxs.push(0)
-        return tr.bxs.size()
 
     # ---- L1544: drawing only ----
     def f_extendLines(self, tr):

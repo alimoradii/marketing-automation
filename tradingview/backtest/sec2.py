@@ -96,8 +96,7 @@ class Sec2:
             for lg in fb:
                 if (not lg.done and not lg.fs and not lg.hasFs and i > lg.oneBar and (price < lg.one if isHigh else price > lg.one)
                         and (self.iFsBig <= 0 or na(self.atr14) or abs(lg.one - lg.zero) >= self.iFsBig * self.atr14)):
-                    zb = self.f_lastBarBefore(self.slB if isHigh else self.shB, i)
-                    z = self.f_lastBefore(self.slB if isHigh else self.shB, self.slP if isHigh else self.shP, i)
+                    z, zb = self.f_lastBefore(self.slB if isHigh else self.shB, self.slP if isHigh else self.shP, i)
                     if zb > lg.oneBar and not na(z) and (z < price if isHigh else z > price) and abs(price - z) >= self.iMinLeg * self.PIP:
                         u = abs(price - z)
                         a2 = z - self.iZ2a * u if isHigh else z + self.iZ2a * u
@@ -112,8 +111,7 @@ class Sec2:
         ext = False
         key = NA
         for sw in self.sweeps:
-            important = (sw.kind != "swing" or sw.name == "Equal Highs" or sw.name == "Equal Lows" or sw.name == "ITH"
-                         or sw.name == "ITL" or sw.name == "Hunt High" or sw.name == "Hunt Low")
+            important = sw.kind != "swing" or not sw.name.startswith("Swing")  # ITH / ITL, equal highs / lows, hunts
             if sw.bsl == isHigh and sw.bar >= i - 3 and sw.bar <= i and important:
                 if not (("," + sw.name + ",") in ("," + names + ",")):
                     names = sw.name if names == "" else names + "," + sw.name
@@ -242,7 +240,7 @@ class Sec2:
             lg.bxs = PArr()
 
     # ---- L1067: the drawings are not simulated; only the sizes of lg.lns / lbs / bxs are kept like Pine
-    # (f_upkeep and f_signalCont test lg.lns.size()), with placeholder items ----
+    # (f_upkeep and f_signal test lg.lns.size()), with placeholder items ----
     def f_drawLeg(self, lg):
         self._sec2_legArrs(lg)
         if self.iShowLegs and self.DRAW:
@@ -267,8 +265,9 @@ class Sec2:
         x2 = self.f_fibEnd(lg)
         return x2
 
-    # ---- L1103: line/label/box.delete do not empty the arrays in Pine; only the flag changes ----
+    # ---- f_deleteLeg = f_hide (deletes the drawings, empties the arrays) + the flag ----
     def f_deleteLeg(self, lg):
+        self.f_hide(lg)
         lg.cleaned = True
         return lg.cleaned
 
@@ -295,15 +294,10 @@ class Sec2:
                 if (cb > o1) if zb else (cb < o1):
                     broken = True
                 worst = pmin(worst, cb) if zb else pmax(worst, cb)
-            if not broken:
-                z2a = o0 - self.iZ2a * u if zb else o0 + self.iZ2a * u
-                z2b = o0 - self.iZ2b * u if zb else o0 + self.iZ2b * u
-                z3a = o0 - self.iZ3a * u if zb else o0 + self.iZ3a * u
-                z3b = o0 - self.iZ3b * u if zb else o0 + self.iZ3b * u
-                if zb:
-                    ok = (one <= z2a and worst >= z2b) or (one <= z3a and worst >= z3b)
-                else:
-                    ok = (one >= z2a and worst <= z2b) or (one >= z3a and worst <= z3b)
+            if not broken:  # fib 1 of the new leg reached -2 (-3.5) of the old one and no close went past its -2.5 (-4)
+                for i, a in enumerate(afrom(self.iZ2a, self.iZ3a)):
+                    b = self.iZ2b if i == 0 else self.iZ3b
+                    ok = ok or (self.f_reach(zb, one, (o0 - a * u) if zb else (o0 + a * u)) and not self.f_beyond(zb, worst, (o0 - b * u) if zb else (o0 + b * u)))
         return ok
 
     # ---- L1143 ----
@@ -322,23 +316,19 @@ class Sec2:
         if not lg.oppDone:
             lg.oppDone = True
             px = NA
-            pb = -1
             n = self.zrBar.size()
             if n > 0:
                 for k in prange(n - 1, 0):
                     ob = self.zrBar.get(k)
                     o1 = self.zrOne.get(k)
                     if na(lg.oppPx) and self.zrBear.get(k) != lg.bear and ob < lg.oneBar and lg.oneBar - ob <= self.iLegAge and (o1 < lg.one if lg.bear else o1 > lg.one):
-                        if pb < 0:
+                        if na(px):
                             px = o1
-                            pb = ob
                         if self.f_zoneHit(k, lg.bear, lg.one, lg.oneBar):
                             lg.oppPx = o1
-                            lg.oppBar = ob
             if na(lg.oppPx):
                 lg.oppPx = px
-                lg.oppBar = pb
-        return lg.oppBar
+        return lg.zero if na(lg.oppPx) else lg.oppPx  # fib 0 when there is none
 
     # ---- L1176-1204: SDP zones of the leg zero -> one, nearest first: the first one fully in premium (buy) / discount
     # (sell) of the dealing range is the target at its first level (-1 / -2 / -3.5); a zone across the 50% makes the 50%

@@ -1,10 +1,10 @@
 """Section 4 of the MZ_SDP.pine port: Pine lines 1705-2228.
 
-notes (f_grayNote: label dropped, the st.note* state kept), f_reject, f_note, f_touch, f_resetSetup, lower-timeframe
-follow-up (f_track5, f_disp5, f_farFrom5), confirmations (f_3pd, f_smt), the zone-reversal signal f_signal (Trade + siglog)
-and the zone-reversal leg step f_stepLeg.
-L1706 `var array<label> noteLbs` is drawing only (dropped). The range has no other top-level code, so there are no
-init_ / top_ methods. Line numbers are the pre-bedea9e ones (as in sec1-sec3); in the current Pine file this range is
+notes (f_grayNote: label dropped, the note state kept), f_reject, f_note, f_touch, lower-timeframe
+follow-up (f_track5, f_disp5, f_farFrom5), confirmations (f_3pd, f_smt), the signal of every setup f_signal (zone
+reversal, hunt leg, silver bullet: Trade + siglog; queued by the step functions, made by f_stepBook) and the zone-reversal
+leg step f_stepLeg.
+L1706 `var array<label> noteLbs` is drawing only (dropped); init_1706 holds the gray-note state. Line numbers are the pre-bedea9e ones (as in sec1-sec3); in the current Pine file this range is
 L1752-2275 (+47), unchanged in content.
 """
 from base import *
@@ -16,25 +16,22 @@ def _utc_stamp(t):
 
 
 class Sec4:
+    # ---- gray-note state per side (Pine var noteTxt / noteBar / noteSlot; the labels noteLbs are drawing) ----
+    def init_1706(self):
+        self.noteTxt = afrom("", "")
+        self.noteBar = afrom(-100, -100)
+        self.noteSlot = afrom(0, 0)
+
     # ---- L1707: gray note under / over the price; only its state is kept (the label is drawing) ----
     def f_grayNote(self, buySide, txt):
-        st = self.st
-        # dupNote (L1708) only decides whether the label is drawn
-        if buySide:
-            st.noteTxtDn = txt
-            st.noteTxtDnBar = self.bar_index
-        else:
-            st.noteTxtUp = txt
-            st.noteTxtUpBar = self.bar_index
-        slot = 0
-        if buySide:
-            slot = (st.noteSlotDn + 1) % 4 if self.bar_index - st.noteBarDn <= 12 else 0
-            st.noteBarDn = self.bar_index
-            st.noteSlotDn = slot
-        else:
-            slot = (st.noteSlotUp + 1) % 4 if self.bar_index - st.noteBarUp <= 12 else 0
-            st.noteBarUp = self.bar_index
-            st.noteSlotUp = slot
+        # per side (0 = above the candles, 1 = below): last note, its bar, its slot (noteTxt / noteBar / noteSlot)
+        s = 1 if buySide else 0
+        ago = self.bar_index - self.noteBar.get(s)
+        # dupNote only decides whether the label is drawn
+        slot = (self.noteSlot.get(s) + 1) % 4 if ago <= 12 else 0
+        self.noteTxt.set(s, txt)
+        self.noteBar.set(s, self.bar_index)
+        self.noteSlot.set(s, slot)
         # L1725-1731: label position / label.new / noteLbs - drawing only
         return None   # Pine returns the label (na when not drawn)
 
@@ -53,28 +50,17 @@ class Sec4:
         return why
 
     # ---- L1746 ----
-    def f_touch(self, lg, z, ext):
+    # zone z reached at bar b with extreme ext ("", na, -1: the setup starts over)
+    def f_touch(self, lg, z, ext, b):
         lg.zone = z
-        lg.touchBar = self.bar_index
+        lg.touchBar = b
         lg.extreme = ext
-        lg.extremeBar = self.bar_index
+        lg.extremeBar = b
         lg.mssBar = -1
         lg.mssLevel = NA
         lg.ithBar = -1
         lg.z5 = Ltf()
         return z
-
-    # ---- L1757 ----
-    def f_resetSetup(self, lg):
-        lg.zone = ""
-        lg.touchBar = -1
-        lg.extreme = NA
-        lg.extremeBar = -1
-        lg.mssBar = -1
-        lg.mssLevel = NA
-        lg.ithBar = -1
-        lg.z5 = Ltf()
-        return lg.zone
 
     # ---- L1768-1819: walk the lower-timeframe candles not seen yet, in order (the first time: from chart bar fromBar on).
     # A new extreme resets the MSS and, when needHunt, must take an LTF swing (stop hunt); a later candle beyond the LTF
@@ -217,7 +203,7 @@ class Sec4:
     # ---- L1903: SMT divergence with the second symbol (grade only) ----
     def f_smt(self, lg):
         bear = lg.bear
-        b0 = self.f_lastBarBefore(self.slB if bear else self.shB, lg.touchBar)
+        p0, b0 = self.f_lastBefore(self.slB if bear else self.shB, self.slP if bear else self.shP, lg.touchBar)
         res = False
         if b0 >= 0:
             useLow = bear != self.iSmtInv
@@ -234,22 +220,32 @@ class Sec4:
             res = not na(ref) and not na(now) and ((now >= ref) if useLow else (now <= ref))
         return res
 
-    # ---- L1922: signal of the zone reversal (2022 setup at -2..-2.5 / -3.5..-4): filters, targets, Trade ----
-    def f_signal(self, lg, g, win, drHi, drHiB, drLo, drLoB):
+    # ---- the signal of every setup (Pine f_signal(SigRq q)): name "zone" (reversal at -2..-2.5 / -3.5..-4), "continuation"
+    # (hunt leg) or "silver_bullet"; stopRef = fib 1 of the entry leg (the stop); mainPx = the silver bullet's -2.
+    # Filters, targets, Trade + siglog (the label / lines / alerts are drawing) ----
+    def f_signal(self, lg, g, win, stopRef, mainPx, name, drHi, drLo):
         PIP = self.PIP
-        buy = lg.bear
+        zn = name == "zone"
+        isSb = name == "silver_bullet"
+        buy = lg.bear == zn
         side = "buy" if buy else "sell"
+        # entry leg fib 1 -> fib 0: zone extreme -> the swing before it / hunt -> fib 0 of the leg; LTF when the MSS came from there
+        t5 = lg.z5 if zn else lg.c5
+        ltf = t5.mss and not isSb
+        l1 = lg.one if isSb else stopRef
+        pz, bz = self.f_lastBefore(self.shB if buy else self.slB, self.shP if buy else self.slP, lg.extremeBar)
+        lz = t5.zero if ltf else (pz if zn else lg.zero)
         rej = ""
-        entry = ((g.top if buy else g.bottom) if self.iEdge == "Proximal" else (g.top + g.bottom) / 2)
+        entry = self.f_gapEntry(g, buy)
         market = False
         if ((self.close <= entry) if buy else (self.close >= entry)) or (self.iMktEntry and not self.iOnRetrace):
             entry = self.close
             market = True
-        stop = (lg.extreme - self.iSlPips * PIP) if buy else (lg.extreme + self.iSlPips * PIP)
+        stop = (stopRef - self.iSlPips * PIP) if buy else (stopRef + self.iSlPips * PIP)
         drEq = (drHi + drLo) / 2
         if (self.useDR or (self.iMktEntry and not self.iOnRetrace)) and ((entry >= drEq) if buy else (entry <= drEq)):
             rej = "entry in " + ("premium" if buy else "discount") + " of the dealing range (50% = " + self.f_num(drEq) + ")"
-        if rej == "" and ((self.iRevDR and not lg.fs) or (self.iMktEntry and not self.iOnRetrace)):
+        if rej == "" and zn and ((self.iRevDR and not lg.fs) or (self.iMktEntry and not self.iOnRetrace)):
             rEq = self.f_revEq(lg.bear, lg.one, lg.oneBar)
             if not na(rEq) and ((entry > rEq) if buy else (entry < rEq)):
                 rej = "zone in " + ("premium" if buy else "discount") + " of the move it retraces (50% = " + self.f_num(rEq) + ")"
@@ -264,30 +260,25 @@ class Sec4:
             rej = "invalid risk"
         elif self.iUseMinStop and risk < self.iMinStop * PIP:
             rej = "stop too tight (" + tstr(risk / PIP, "0.0") + " pips)"
-        # entry leg: zone extreme (fib 1) to the swing before it (fib 0) - on the lower timeframe when the MSS came from there
-        tz = lg.z5.zero if lg.z5.mss else self.f_lastBefore(self.shB if buy else self.slB, self.shP if buy else self.slP, lg.extremeBar)
-        tzB = lg.z5.zeroBar if lg.z5.mss else self.f_lastBarBefore(self.shB if buy else self.slB, lg.extremeBar)
-        if rej == "" and na(tz):
-            rej = "no swing for the entry leg"
-        unit = NA if na(tz) else ((tz - lg.extreme) if buy else (lg.extreme - tz))
-        if rej == "" and unit <= 0:
-            rej = "entry leg invalid"
+        if rej == "" and zn and not (((lz - l1) if buy else (l1 - lz)) > 0):
+            rej = "no valid swing for the entry leg"
         main = NA
         partial = NA
         rr = 0.0
         tpWhy = ""
         tpTag = ""
-        extMode = self.iTgtMode == "External liquidity"
+        extMode = zn and self.iTgtMode == "External liquidity"
         if rej == "":
-            m0, w0, g0 = self.f_mainTarget(buy, entry, risk, tz, lg.extreme, drEq, drHi if buy else drLo,
-                                           lg.drOne if extMode else ((tz + self.iTgt * unit) if buy else (tz - self.iTgt * unit)),
-                                           "fib 1 of the hunt leg" if extMode else "-" + tstr(self.iTgt))
+            # the silver bullet keeps its -2 (the move goes on); the others take the SDP zones of the entry leg in premium / discount
+            m0, w0, g0 = self.f_mainTarget(buy, entry, risk, lz, l1, NA if isSb else drEq, drHi if buy else drLo,
+                                           lg.drOne if extMode else ((lz - self.iTgt * (l1 - lz)) if na(mainPx) else mainPx),
+                                           "fib 1 of the hunt leg" if extMode else "-" + tstr(self.iZ2a if isSb else self.iTgt))
             main = m0
             tpWhy = w0
             tpTag = g0
             if (main <= entry) if buy else (main >= entry):
                 rej = "target not beyond entry"
-            partial = drEq if extMode else ((tz + self.iPart * unit) if buy else (tz - self.iPart * unit))
+            partial = drEq if extMode else lz - self.iPart * (l1 - lz)
             partial = (partial - self.iTpBuf * PIP) if buy else (partial + self.iTpBuf * PIP)
             if not ((entry < partial and partial < main) if buy else (main < partial and partial < entry)):
                 partial = NA
@@ -296,10 +287,11 @@ class Sec4:
                 rej = "R:R 1:" + tstr(rr, "0.0") + " below the minimum 1:" + tstr(self.iMinRR, "0.0") + tpWhy
         warn = ""
         if rej == "" and self.MOF and not na(self.midOpen) and ((entry >= self.midOpen) if buy else (entry <= self.midOpen)):
-            if self.STRICT or self.iMOHard:
-                rej = "wrong side of NY Open"
+            if self.iMOHard or (zn and self.STRICT):
+                rej = "entry " + ("above" if buy else "below") + " NY Open " + self.f_num(self.midOpen)
             else:
                 warn += "wrong side of NY Open; "
+        # unfinished business (liquidity left near the entry), HTF direction and red news
         eqLeft = ""
         if rej == "" and self.iUB:
             farPx = (stop - self.iUBPips * PIP) if buy else (stop + self.iUBPips * PIP)
@@ -322,48 +314,48 @@ class Sec4:
             nws = self.f_newsAt(self.time_close) if self.iUseNews else ""
             if nws != "":
                 rej = "news: " + nws
-        emitted = False
         if rej != "":
-            self.f_reject(lg, rej)
+            self.st.rejected += 1
+            if self.iShowRej:
+                self.f_grayNote(buy, ("" if zn else "silver bullet setup: " if isSb else "hunt setup: ") + rej)
         else:
             st = self.st
-            nPD = self.f_3pd(lg) if self.iUse3PD else 0
-            pd3 = self.iUse3PD and nPD >= 3
             htfOk = self.iUseHTF and self.htfTrend == (1 if buy else -1)
+            nPD = self.f_3pd(lg) if (zn and self.iUse3PD) else 0
+            pd3 = self.iUse3PD and nPD >= 3
             # no second-symbol data in the engine (smtH / smtL = this symbol): iUseSMT_data keeps SMT from confirming
-            smtOk = self.iUseSMT and self.iUseSMT_data and self.f_smt(lg)
-            sbOk = self.iUseSB and self.inSB
-            dblOk = self.f_lastBarBefore(self.slB if buy else self.shB, self.bar_index) > lg.mssBar
-            maxScore = 2 + (1 if self.iUseSB else 0) + (1 if self.iUse3PD else 0) + (1 if self.iUseHTF else 0) + (1 if self.iUseSMT else 0)
-            score = (1 if pd3 else 0) + (1 if htfOk else 0) + (1 if sbOk else 0) + (1 if smtOk else 0) + (1 if lg.tsoup else 0) + (1 if dblOk else 0)
-            grade = "A+" if score >= 3 else "A" if score >= 1 else "B"
-            if eqLeft != "" or warn != "":
-                grade = "B"
-            emitted = True
+            smtOk = zn and self.iUseSMT and self.iUseSMT_data and self.f_smt(lg)
+            ob = self.slB if buy else self.shB  # a swing after the MSS (double confirmation)
+            score = ((1 if pd3 else 0) + (1 if htfOk else 0) + (1 if (self.iUseSB and self.inSB) else 0) + (1 if smtOk else 0)
+                     + (1 if (zn and lg.tsoup) else 0) + (1 if (zn and ob.size() > 0 and ob.last() > lg.mssBar) else 0))
+            maxScore = ((2 + (1 if self.iUse3PD else 0) + (1 if self.iUseSMT else 0)) if zn else 0) + (1 if self.iUseSB else 0) + (1 if self.iUseHTF else 0)
+            grade = "B" if (eqLeft != "" or warn != "") else "A+" if score >= (3 if zn else 2) else "A" if score >= 1 else "B"
             lg.signaled = True
             st.dayCount += 1
             st.signals += 1
             sid = self.TK + "-" + self.timeframe_period + "-" + side + "-" + _utc_stamp(self.time_close) + "-" + tstr(st.signals)  # unique: two setups can signal on one bar
-            trNew = Trade(sid, not buy, entry, stop, partial, main, self.bar_index + self.validBars, market, legBar=lg.oneBar)
+            trNew = Trade(sid, not buy, entry, stop, partial, main, self.bar_index + self.validBars, market, legBar=lg.oneBar,
+                          lns=PArr(), lls=PArr(), bxs=PArr())
             trNew.warn = self.f_warn(buy, entry)
+            trNew.sigH = self.high
+            trNew.sigL = self.low
             self.trades.push(trNew)
             self.f_stratOpen(trNew, grade)   # no-op in the indicator (sec3), kept for the Pine call order
-            kind = ("FS" if lg.fs else "zone -2" if lg.zone == "Z2" else "zone -3.5") + ((" " + self.iLtfTf + "m") if lg.z5.mss else "")
+            kind = ("SB" if isSb else "hunt" if not zn else "FS" if lg.fs else "zone -2" if lg.zone == "Z2" else "zone -3.5") + ((" " + self.iLtfTf + "m") if ltf else "")
             self.siglog.append(dict(id=sid, bar=self.bar_index, time=self.time, side='sell' if trNew.sell else 'buy',
                                     entry=trNew.entry, stop=trNew.stop, tp1=trNew.tp1, tpMain=trNew.tpMain, market=trNew.market,
                                     kind=kind, grade=grade, warn=trNew.warn,
-                                    setup="failure_swing" if lg.fs else "reversal", zone=lg.zone, ltf=lg.z5.mss,
-                                    score=score, maxScore=maxScore, rr=rr, tpTag=tpTag, legBar=lg.oneBar, tz=tz, tzB=tzB,
-                                    drHi=drHi, drLo=drLo, win=win))
+                                    setup=(("failure_swing" if lg.fs else "reversal") if zn else name), zone=(lg.zone if zn else ""), ltf=ltf,
+                                    score=score, maxScore=maxScore, rr=rr, tpTag=tpTag, legBar=lg.oneBar, tz=lz,
+                                    tzB=(t5.zeroBar if ltf else bz if zn else lg.zeroBar), drHi=drHi, drLo=drLo, win=win))
             self.usedStops.push(pround(stop / PIP * 10) * (1 if buy else -1))
             if self.usedStops.size() > 50:
                 self.usedStops.shift()
             st.liveLeg = lg.oneBar
             st.lastSig = lg.oneBar
-            # L2035-2071: zoneTxt / ltfTxt, trade lines, dealing-range boxes, FVG box, entry-leg SDP, signal label
-            # (trNew.lab / tip / mini / kind are only set for drawing; DRAW is True so mini / kind stay unset) and alerts:
-            # drawing / alerts only
-        return emitted
+            # trade lines / labels, dealing-range boxes, FVG box, signal label, entry-leg SDP (f_clearSigSdp) and the
+            # alerts: drawing / alerts only
+        return rej == ""
 
     # ---- L2074: one step of a zone-reversal leg: zone -2..-2.5 / -3.5..-4 reached, stop hunt + MSS, displacement, FVG ----
     # Pine f_disp: one of the candles 0..lastK back has body >= 50% of its range and range >= ATR x
@@ -416,7 +408,7 @@ class Sec4:
             if kill:
                 lg.z2Alive = False
                 if lg.zone == "Z2":
-                    self.f_resetSetup(lg)
+                    self.f_touch(lg, "", NA, -1)
         if go and lg.z3Alive and self.f_beyond(bear, self.close, self.f_lvl(lg, self.iZ3b)):
             lg.z3Alive = False
             lg.done = True
@@ -424,9 +416,9 @@ class Sec4:
             go = False
         if go and lg.zone == "":
             if lg.z2Alive and self.f_reach(bear, ext, self.f_lvl(lg, self.iZ2a)):
-                self.f_touch(lg, "Z2", ext)
+                self.f_touch(lg, "Z2", ext, self.bar_index)
             elif not lg.z2Alive and lg.z3Alive and self.f_reach(bear, ext, self.f_lvl(lg, self.iZ3a)):
-                self.f_touch(lg, "Z3", ext)
+                self.f_touch(lg, "Z3", ext, self.bar_index)
             if lg.zone == "":
                 go = False
         if go and ((self.low < lg.extreme) if bear else (self.high > lg.extreme)):
@@ -447,18 +439,12 @@ class Sec4:
             bI = -1
             pI = NA
             m15 = False
-            if self.bar_index > lg.extremeBar:
-                pb = (self.shB if bear else self.slB) if self.MSS_SHORT else (self.ithB if bear else self.itlB)
-                pp = (self.shP if bear else self.slP) if self.MSS_SHORT else (self.ithP if bear else self.itlP)
-                n = pb.size()
-                if n > 0:
-                    for k in prange(n - 1, 0):
-                        b = pb.get(k)
-                        if b < lg.extremeBar:
-                            if b >= lg.extremeBar - self.iIthLB:
-                                bI = b
-                                pI = pp.get(k)
-                            break
+            if self.bar_index > lg.extremeBar:  # the swing before the extreme, if it is not too old
+                p0, b0 = self.f_lastBefore((self.shB if bear else self.slB) if self.MSS_SHORT else (self.ithB if bear else self.itlB),
+                                           (self.shP if bear else self.slP) if self.MSS_SHORT else (self.ithP if bear else self.itlP), lg.extremeBar)
+                if b0 >= lg.extremeBar - self.iIthLB:
+                    bI = b0
+                    pI = p0
                 m15 = bI >= 0 and ((self.high > pI) if bear else (self.low < pI))
             if not m15 and m5:  # the chart timeframe first; the lower one only when it shows no MSS (notes: 15m main, 5m when 15m has no clear leg)
                 bI = lg.z5.zeroBar
@@ -500,19 +486,10 @@ class Sec4:
                 farBar = f5B
             dispEnd = farBar if self.iFvgDisp else self.bar_index
             # dealing range: BSL = the hunt of the SDP (fib 1), SSL = the zone extreme (mirror for a sell); wider if price went past fib 1
-            oneB = lg.parentBar if lg.fs else lg.oneBar
             farOut = (far > lg.drOne) if bear else (far < lg.drOne)
-            drHi = (far if farOut else lg.drOne) if bear else lg.extreme
-            drHiB = (farBar if farOut else oneB) if bear else lg.extremeBar
-            drLo = lg.extreme if bear else (far if farOut else lg.drOne)
-            drLoB = lg.extremeBar if bear else (farBar if farOut else oneB)
+            drHi = self.dr.hi if self.drOn else (far if farOut else lg.drOne) if bear else lg.extreme
+            drLo = self.dr.lo if self.drOn else lg.extreme if bear else (far if farOut else lg.drOne)
             drEq = (drHi + drLo) / 2
-            if self.DR_CHART and self.f_drReady():  # the dealing range on the chart (BSL <-> SSL) as it is now
-                drHi = self.dr.hi
-                drHiB = self.dr.hiB
-                drLo = self.dr.lo
-                drLoB = self.dr.loB
-                drEq = (drHi + drLo) / 2
             eq = (lg.extreme + far) / 2
             if self.useDR:
                 eq = pmin(eq, drEq) if bear else pmax(eq, drEq)
@@ -532,5 +509,6 @@ class Sec4:
             if go:
                 lg.done = True
                 self.f_useGap(best, bear)
-                out = self.f_signal(lg, best, self.winNow, drHi, drHiB, drLo, drLoB)
+                self.rqs.append((lg, best, self.winNow, lg.extreme, NA, "zone", drHi, drLo))
+                out = True
         return out

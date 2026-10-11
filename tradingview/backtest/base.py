@@ -141,10 +141,10 @@ Sess = ptype('Sess', [('active', False), ('key', NA), ('hi', NA), ('lo', NA), ('
 Gap = ptype('Gap', [('bar', NA), ('top', NA), ('bottom', NA), ('bull', False), ('filled', False), ('ltf', False), ('t1', 0), ('t2', 0), ('b0', -1), ('nofvg', False), ('atMss', False)])
 Hunt = ptype('Hunt', [('bear', False), ('one', NA), ('zero', NA), ('bar', NA), ('level', NA), ('names', NA), ('external', False), ('parent', -1), ('zeroBar', -1)])
 Ltf = ptype('Ltf', [('xi', -1), ('xp', NA), ('xt', 0), ('last', -1), ('hunt', False), ('mss', False), ('zero', NA), ('zeroBar', -1)])
-Leg = ptype('Leg', [('bear', False), ('one', NA), ('zero', NA), ('oneBar', NA), ('createdBar', NA), ('names', NA), ('z2Alive', True), ('z3Alive', True), ('z2Pend', -1), ('zone', ""), ('touchBar', -1), ('extreme', NA), ('extremeBar', -1), ('mssLevel', NA), ('mssBar', -1), ('ithBar', -1), ('tsoup', False), ('cMss', False), ('cMssBar', -1), ('cFar', NA), ('cDone', False), ('cLevel', NA), ('cLvlBar', -1), ('cMssDrawn', False), ('note', ""), ('fs', False), ('parentBar', -1), ('drOne', NA), ('hasFs', False), ('redraw', False), ('zeroBar', -1), ('endWhy', ""), ('done', False), ('signaled', False), ('inZone', False), ('mssOk', False), ('sbTouch', -1), ('sbExt', NA), ('sbExtBar', -1), ('sbMss', False), ('sbDone', False), ('sbLvl', NA), ('z5', None), ('c5', None), ('oppDone', False), ('oppPx', NA), ('oppBar', -1), ('cleaned', False), ('lns', None), ('lbs', None), ('bxs', None)])
-Trade = ptype('Trade', [('id', NA), ('sell', False), ('entry', NA), ('stop', NA), ('tp1', NA), ('tpMain', NA), ('validUntil', NA), ('market', False), ('state', 0), ('risk', NA), ('remaining', 1.0), ('realized', 0.0), ('partialDone', False), ('legBar', -1), ('lab', None), ('mini', False), ('tip', ""), ('kind', ""), ('warn', ""), ('lns', None), ('lls', None), ('bxs', None)])
+Leg = ptype('Leg', [('bear', False), ('one', NA), ('zero', NA), ('oneBar', NA), ('createdBar', NA), ('names', NA), ('z2Alive', True), ('z3Alive', True), ('z2Pend', -1), ('zone', ""), ('touchBar', -1), ('extreme', NA), ('extremeBar', -1), ('mssLevel', NA), ('mssBar', -1), ('ithBar', -1), ('tsoup', False), ('cMss', False), ('cMssBar', -1), ('cFar', NA), ('cDone', False), ('cLevel', NA), ('cLvlBar', -1), ('cMssDrawn', False), ('note', ""), ('fs', False), ('parentBar', -1), ('drOne', NA), ('hasFs', False), ('redraw', False), ('zeroBar', -1), ('endWhy', ""), ('done', False), ('signaled', False), ('inZone', False), ('mssOk', False), ('sbTouch', -1), ('sbExt', NA), ('sbExtBar', -1), ('sbMss', False), ('sbDone', False), ('sbLvl', NA), ('z5', None), ('c5', None), ('oppDone', False), ('oppPx', NA), ('cleaned', False), ('lns', None), ('lbs', None), ('bxs', None)])
+Trade = ptype('Trade', [('id', NA), ('sell', False), ('entry', NA), ('stop', NA), ('tp1', NA), ('tpMain', NA), ('validUntil', NA), ('market', False), ('state', 0), ('risk', NA), ('remaining', 1.0), ('realized', 0.0), ('partialDone', False), ('legBar', -1), ('lab', None), ('mini', False), ('tip', ""), ('kind', ""), ('warn', ""), ('lns', None), ('lls', None), ('bxs', None), ('sigH', NA), ('sigL', NA)])
 DRng = ptype('DRng', [('hi', NA), ('hiB', -1), ('hiWhy', ""), ('lo', NA), ('loB', -1), ('loWhy', ""), ('isNew', False), ('pHiBar', -1), ('pHiWhy', ""), ('pLoBar', -1), ('pLoWhy', "")])
-Stats = ptype('Stats', [('signals', 0), ('closed', 0), ('wins', 0), ('losses', 0), ('totalR', 0.0), ('dayCount', 0), ('rejected', 0), ('liveLeg', -1), ('lastSig', -1), ('noteBarUp', -100), ('noteSlotUp', 0), ('noteBarDn', -100), ('noteSlotDn', 0), ('noteTxtUp', ""), ('noteTxtUpBar', -100), ('noteTxtDn', ""), ('noteTxtDnBar', -100)])
+Stats = ptype('Stats', [('signals', 0), ('closed', 0), ('wins', 0), ('losses', 0), ('totalR', 0.0), ('dayCount', 0), ('rejected', 0), ('liveLeg', -1), ('lastSig', -1)])
 
 
 @functools.lru_cache(maxsize=400000)
@@ -582,24 +582,17 @@ class Base:
     def f_reach(self, bear, ext, lvl): return ext <= lvl if bear else ext >= lvl
 
     def f_lastBefore(self, bars, prices, x):
+        """last swing before bar x: (price, bar) (na, -1 if none)"""
         r = NA
+        rb = -1
         n = bars.size()
         if n > 0:
             for i in prange(n - 1, 0):
                 if bars.get(i) < x:
                     r = prices.get(i)
+                    rb = bars.get(i)
                     break
-        return r
-
-    def f_lastBarBefore(self, bars, x):
-        r = -1
-        n = bars.size()
-        if n > 0:
-            for i in prange(n - 1, 0):
-                if bars.get(i) < x:
-                    r = bars.get(i)
-                    break
-        return r
+        return r, rb
 
     def f_huntOrigin(self, bars, prices, x, lowSwings):
         zp = NA

@@ -46,22 +46,11 @@ class Sec1:
         self.ssLon = Sess()
         self.ssNY = Sess()
 
-    # ---- L581-589: built-in FOMC days (no trade that NY day) ----
+    # ---- red news: the built-in FOMC days (14:00 NY) go through the parser of the manual list, before it ----
     def top_581(self):
-        if self.barstate_isfirst and self.iFomc:
-            for d in afrom("2025-01-29", "2025-03-19", "2025-05-07", "2025-06-18", "2025-07-30", "2025-09-17", "2025-10-29", "2025-12-10", "2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17", "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09"):
-                fy = int(d[0:4])
-                fm = int(d[5:7])
-                fd = int(d[8:10])
-                ft = timestamp(TZ, fy, fm, fd, 14, 0)
-                self.newsTimes.push(ft)
-                self.newsFrom.push(timestamp(TZ, fy, fm, fd, 0, 0) if self.iNewsDay else ft - self.iNewsBefore * 60000)
-                self.newsTo.push(ft + pmax(self.iNewsAfter, self.iMajorAfter) * 60000)
-
-    # ---- L591-611: manual red-news list ----
-    def top_591(self):
-        if self.barstate_isfirst and self.iNewsOn and len(self.iNewsList) > 0:
-            rows = PArr(self.iNewsList.replace(",", "\n").split("\n"))
+        newsSrc = ("2025-01-29 14:00 FOMC,2025-03-19 14:00 FOMC,2025-05-07 14:00 FOMC,2025-06-18 14:00 FOMC,2025-07-30 14:00 FOMC,2025-09-17 14:00 FOMC,2025-10-29 14:00 FOMC,2025-12-10 14:00 FOMC,2026-01-28 14:00 FOMC,2026-03-18 14:00 FOMC,2026-04-29 14:00 FOMC,2026-06-17 14:00 FOMC,2026-07-29 14:00 FOMC,2026-09-16 14:00 FOMC,2026-10-28 14:00 FOMC,2026-12-09 14:00 FOMC," if self.iFomc else "") + (self.iNewsList if self.iNewsOn else "")
+        if self.barstate_isfirst and len(newsSrc) > 0:
+            rows = PArr(newsSrc.replace(",", "\n").split("\n"))
             for r in rows:
                 m = re.search(r"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}", r)
                 s = m.group(0) if m else ""
@@ -221,10 +210,6 @@ class Sec1:
 
     # ---- L732-755: lower-timeframe state ----
     def init_732(self):
-        self.l5h = PArr()
-        self.l5l = PArr()
-        self.l5t = PArr()
-        self.l5b = PArr()
         self.gaps5 = PArr()         # array<Gap>
         self.used5 = PArr()
         # lower-timeframe candles for the stop hunt + MSS at the zone; an LTF candle's running index is n5 - size + position
@@ -284,51 +269,41 @@ class Sec1:
                 hh = self.lH.get(j)
                 ll = self.lL.get(j)
                 cc = self.lC.get(j)
-                if self.LTF_MSS:
-                    pc = self.x5c.last() if self.x5c.size() > 0 else NA
-                    tr5 = (hh - ll) if na(pc) else pmax(hh - ll, pabs(hh - pc), pabs(ll - pc))
-                    self.atr5 = tr5 if na(self.atr5) else (self.atr5 * 13 + tr5) / 14
-                    self.x5h.push(hh)
-                    self.x5l.push(ll)
-                    self.x5o.push(self.lO.get(j))
-                    self.x5c.push(cc)
-                    self.x5a.push(self.atr5)
-                    self.x5t.push(self.lT.get(j))
-                    self.x5b.push(self.bar_index)
-                    self.n5 += 1
-                    if self.x5h.size() > 1000:
-                        self.x5h.shift()
-                        self.x5l.shift()
-                        self.x5o.shift()
-                        self.x5c.shift()
-                        self.x5a.shift()
-                        self.x5t.shift()
-                        self.x5b.shift()
-                    s = self.x5h.size()
-                    if s >= 3:
-                        mh = self.x5h.get(s - 2)
-                        ml = self.x5l.get(s - 2)
-                        if mh > self.x5h.get(s - 3) and mh >= hh:
-                            self.f_on5Swing(self.n5 - 2, mh, True)
-                        if ml < self.x5l.get(s - 3) and ml <= ll:
-                            self.f_on5Swing(self.n5 - 2, ml, False)
+                pc = self.x5c.last() if self.x5c.size() > 0 else NA
+                tr5 = (hh - ll) if na(pc) else pmax(hh - ll, pabs(hh - pc), pabs(ll - pc))
+                self.atr5 = tr5 if na(self.atr5) else (self.atr5 * 13 + tr5) / 14
+                self.x5h.push(hh)
+                self.x5l.push(ll)
+                self.x5o.push(self.lO.get(j))
+                self.x5c.push(cc)
+                self.x5a.push(self.atr5)
+                self.x5t.push(self.lT.get(j))
+                self.x5b.push(self.bar_index)
+                self.n5 += 1
+                if self.x5h.size() > 1000:
+                    self.x5h.shift()
+                    self.x5l.shift()
+                    self.x5o.shift()
+                    self.x5c.shift()
+                    self.x5a.shift()
+                    self.x5t.shift()
+                    self.x5b.shift()
                 for g in self.gaps5:
                     if not g.filled and ((cc < g.bottom) if g.bull else (cc > g.top)):
                         g.filled = True
-                self.l5h.push(hh)
-                self.l5l.push(ll)
-                self.l5t.push(self.lT.get(j))
-                self.l5b.push(self.bar_index)
-                if self.l5h.size() > 3:
-                    self.l5h.shift()
-                    self.l5l.shift()
-                    self.l5t.shift()
-                    self.l5b.shift()
-                if self.l5h.size() == 3:
-                    if ll > self.l5h.get(0):
-                        self.gaps5.push(Gap(self.bar_index, ll, self.l5h.get(0), True, False, True, self.l5t.get(0), self.lT.get(j), self.l5b.get(0)))
-                    elif hh < self.l5l.get(0):
-                        self.gaps5.push(Gap(self.bar_index, self.l5l.get(0), hh, False, False, True, self.l5t.get(0), self.lT.get(j), self.l5b.get(0)))
+                s = self.x5h.size()
+                if s >= 3:
+                    mh = self.x5h.get(s - 2)
+                    ml = self.x5l.get(s - 2)
+                    if mh > self.x5h.get(s - 3) and mh >= hh:
+                        self.f_on5Swing(self.n5 - 2, mh, True)
+                    if ml < self.x5l.get(s - 3) and ml <= ll:
+                        self.f_on5Swing(self.n5 - 2, ml, False)
+                    # FVG: this candle and the one 2 before do not overlap
+                    if ll > self.x5h.get(s - 3):
+                        self.gaps5.push(Gap(self.bar_index, ll, self.x5h.get(s - 3), True, False, True, self.x5t.get(s - 3), self.lT.get(j), self.x5b.get(s - 3)))
+                    elif hh < self.x5l.get(s - 3):
+                        self.gaps5.push(Gap(self.bar_index, self.x5l.get(s - 3), hh, False, False, True, self.x5t.get(s - 3), self.lT.get(j), self.x5b.get(s - 3)))
             while self.gaps5.size() > 150:
                 self.gaps5.shift()
 
@@ -375,10 +350,6 @@ class Sec1:
             if not na(px):
                 g = Gap(self.bar_index, px, px, gapBull, nofvg=True)
         return g
-
-    # L869: drawing only (FVG box / no-FVG line); returns g.bar like the Pine
-    def f_drawFvg(self, g, buy):
-        return g.bar
 
     # ---- L881-893: liquidity sweeps of this bar ----
     def top_881(self):
