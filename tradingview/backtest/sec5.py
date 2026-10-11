@@ -185,17 +185,8 @@ class Sec5:
                     if not lg.cMssDrawn:
                         lg.cMssDrawn = True
                         self.f_drawMss(lg.cLvlBar, lg.cLevel, "MSS")
-                    disp = not self.iDisp
                     ob = bi - lg.oneBar
-                    if not disp and ob >= 1:
-                        for k in prange(0, ob - (0 if self.iDispHunt else 1)):
-                            j = bi - k  # high[k] = H[bar_index - k]
-                            rng = H[j] - L[j]
-                            body = (C[j] - O[j]) if buy else (O[j] - C[j])
-                            a = ATR[j]
-                            if rng > 0 and body >= 0.5 * rng and (na(a) or rng >= self.iDispAtr * a):
-                                disp = True
-                                break
+                    disp = not self.iDisp or self.f_disp(buy, ob, ob - (0 if self.iDispHunt else 1))
                     if disp:
                         lg.cMss = True
                         lg.cMssBar = bi
@@ -252,15 +243,8 @@ class Sec5:
                 drEq = (drHi + drLo) / 2
             eqD = (pmin(eq, drEq) if buy else pmax(eq, drEq)) if self.useDR else eq
             best = self.f_mssMkt(buy, eqD) if lg.cMssBar == bi else None
-            gs = self.gaps.size() if best is None else 0
-            if gs > 0:
-                for idx in prange(max(0, gs - 60), gs - 1):
-                    g = self.gaps.get(idx)
-                    if (g.bar - (1 if self.iDispHunt else 2) >= hlB and g.bar < bi and g.bar <= dispEndC and not g.filled and g.bull == buy
-                            and not self.usedFvg.includes(g.bar if buy else -g.bar) and self.f_drOk(self.f_gapEntry(g, buy), buy, drEq)):
-                        if not self.iPD or ((g.bottom <= eq) if buy else (g.top >= eq)):
-                            if best is None or ((g.top > best.top) if buy else (g.bottom < best.bottom)):
-                                best = g
+            if best is None:
+                best = self.f_bestGap(buy, hlB + (1 if self.iDispHunt else 2), min(bi - 1, dispEndC), False, eq, drEq)
             if best is None:
                 best = self.f_best5(buy, hlB if ltf else lg.oneBar + 1, eq, False, dispEndC, lg.c5.xt if ltf else 0, drEq)
             if best is None:
@@ -339,17 +323,8 @@ class Sec5:
                                     pI = pp.get(k)
                                 break
                     if bI >= 0 and ((self.high > pI) if buy else (self.low < pI)):
-                        disp = not self.iDisp
                         ob = bi - lg.sbExtBar
-                        if not disp and ob >= 1:
-                            for k in prange(0, ob - 1):
-                                j = bi - k
-                                rng = H[j] - L[j]
-                                body = (C[j] - O[j]) if buy else (O[j] - C[j])
-                                a = ATR[j]
-                                if rng > 0 and body >= 0.5 * rng and (na(a) or rng >= self.iDispAtr * a):
-                                    disp = True
-                                    break
+                        disp = not self.iDisp or self.f_disp(buy, ob, ob - 1)
                         if disp:
                             lg.sbMss = True
                             lg.sbLvl = pI
@@ -379,17 +354,7 @@ class Sec5:
                         drLo = self.dr.lo
                         drLoB = self.dr.loB
                         drEq = (drHi + drLo) / 2
-                    best = None
-                    gs = self.gaps.size()
-                    if gs > 0:
-                        for idx in prange(max(0, gs - 60), gs - 1):
-                            g = self.gaps.get(idx)
-                            if (g.bar - 2 >= lg.sbExtBar and g.bar <= bi and not g.filled and g.bull == buy
-                                    and not self.usedFvg.includes(g.bar if buy else -g.bar) and self.f_drOk(self.f_gapEntry(g, buy), buy, drEq)):
-                                ce = (g.top + g.bottom) / 2
-                                if not self.iPD or ((ce <= eq) if buy else (ce >= eq)):
-                                    if best is None or ((g.top > best.top) if buy else (g.bottom < best.bottom)):
-                                        best = g
+                    best = self.f_bestGap(buy, lg.sbExtBar + 2, bi, True, eq, drEq)
                     if best is not None:
                         lg.sbDone = True
                         self.usedFvg.push(best.bar if buy else -best.bar)

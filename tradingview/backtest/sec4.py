@@ -366,6 +366,33 @@ class Sec4:
         return emitted
 
     # ---- L2074: one step of a zone-reversal leg: zone -2..-2.5 / -3.5..-4 reached, stop hunt + MSS, displacement, FVG ----
+    # Pine f_disp: one of the candles 0..lastK back has body >= 50% of its range and range >= ATR x
+    def f_disp(self, up, ob, lastK):
+        d = False
+        if ob >= 1:
+            for k in prange(0, lastK):
+                rng = self.h_(k) - self.l_(k)
+                body = (self.c_(k) - self.o_(k)) if up else (self.o_(k) - self.c_(k))
+                if rng > 0 and body >= 0.5 * rng and (na(self.atr_(k)) or rng >= self.iDispAtr * self.atr_(k)):
+                    d = True
+                    break
+        return d
+
+    # Pine f_bestGap: best unused chart FVG made from fromBar to toBar on the right side of eq (CE or edge) and of the range
+    def f_bestGap(self, bull, fromBar, toBar, ceRule, eq, drEq):
+        best = None
+        gs = self.gaps.size()
+        if gs > 0:
+            for idx in prange(max(0, gs - 60), gs - 1):
+                g = self.gaps.get(idx)
+                if (g.bar >= fromBar and g.bar <= toBar and not g.filled and g.bull == bull and not self.usedFvg.includes(g.bar if bull else -g.bar)
+                        and self.f_drOk(self.f_gapEntry(g, bull), bull, drEq)):
+                    ce = (g.top + g.bottom) / 2
+                    if not self.iPD or ((((ce <= eq) if bull else (ce >= eq))) if ceRule else ((g.bottom <= eq) if bull else (g.top >= eq))):
+                        if best is None or ((g.top > best.top) if bull else (g.bottom < best.bottom)):
+                            best = g
+        return best
+
     def f_stepLeg(self, lg):
         out = False
         bear = lg.bear
@@ -452,15 +479,8 @@ class Sec4:
             else:
                 go = False
         if go and self.iDisp:
-            disp = False
             ob = self.bar_index - lg.extremeBar
-            if ob >= 1:
-                for k in prange(0, ob - (0 if self.iDispHunt else 1)):
-                    rng = self.h_(k) - self.l_(k)
-                    body = (self.c_(k) - self.o_(k)) if bear else (self.o_(k) - self.c_(k))
-                    if rng > 0 and body >= 0.5 * rng and (na(self.atr_(k)) or rng >= self.iDispAtr * self.atr_(k)):
-                        disp = True
-                        break
+            disp = self.f_disp(bear, ob, ob - (0 if self.iDispHunt else 1))
             if not disp and lg.z5.mss:
                 disp = self.f_disp5(bear, lg.z5.xi)
             if not disp:
@@ -497,16 +517,8 @@ class Sec4:
             if self.useDR:
                 eq = pmin(eq, drEq) if bear else pmax(eq, drEq)
             best = self.f_mssMkt(bear, eq) if lg.mssBar == self.bar_index else None
-            gs = self.gaps.size() if best is None else 0
-            if gs > 0:
-                for idx in prange(pmax(0, gs - 60), gs - 1):
-                    g = self.gaps.get(idx)
-                    if (g.bar - (1 if self.iDispHunt else 2) >= lg.extremeBar and g.bar <= dispEnd and not g.filled and g.bull == bear
-                            and not self.usedFvg.includes(g.bar if bear else -g.bar) and self.f_drOk(self.f_gapEntry(g, bear), bear, drEq)):
-                        ce = (g.top + g.bottom) / 2
-                        if not self.iPD or ((ce <= eq) if bear else (ce >= eq)):
-                            if best is None or ((g.top > best.top) if bear else (g.bottom < best.bottom)):
-                                best = g
+            if best is None:
+                best = self.f_bestGap(bear, lg.extremeBar + (1 if self.iDispHunt else 2), dispEnd, True, eq, drEq)
             if best is None:
                 best = self.f_best5(bear, lg.extremeBar, eq, True, dispEnd, lg.z5.xt if lg.z5.mss else 0, drEq)
             if best is None:
