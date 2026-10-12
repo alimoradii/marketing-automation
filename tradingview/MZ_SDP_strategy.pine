@@ -2381,55 +2381,6 @@ f_stepSb(Leg lg) =>
                     out := true
     out
 
-f_stepBook(array<Leg> book) =>
-    bool fired = false
-    bool firedC = false
-    int n = book.size()
-    if n > 0
-        for k = 0 to n - 1
-            Leg lg = book.get(k)
-            if not lg.done and lg.createdBar != bar_index
-                bool orphan = false
-                if lg.fs
-                    orphan := true
-                    for x in book
-                        if x.oneBar == lg.parentBar and not x.fs and not x.done
-                            orphan := false
-                if bar_index - lg.oneBar > iLegAge or orphan
-                    lg.done := true
-                    lg.endWhy := orphan ? "main leg ended" : "zone not reached (expired)"
-                if not lg.mssOk and (lg.bear ? low < lg.zero : high > lg.zero)
-                    lg.mssOk := true
-                array<int> sa = lg.bear ? slB : shB
-                bool swingAfter = sa.size() > 0 and sa.last() > lg.oneBar
-                if not lg.done and lg.zone == "" and not lg.cMss and not lg.fs and not lg.hasFs and not swingAfter
-                    bool deeper = lg.bear ? high > lg.one and close <= lg.one : low < lg.one and close >= lg.one
-                    if deeper
-                        lg.one := lg.bear ? high : low
-                        lg.oneBar := bar_index
-                        lg.drOne := lg.one
-                        lg.redraw := true
-                else
-                    bool fsOnly = lg.hasFs and not lg.fs and iFsOnly != "Off"
-                    bool fsAll = fsOnly and iFsOnly == "Every setup of the main leg"
-                    // the hunt-leg setup, then the silver bullet (only if the first gave no signal), then the zone reversal
-                    for step = 0 to 2
-                        if step == 2 ? not fired and not lg.done and not fsOnly : not firedC and not fsAll and (step == 0 ? iHunt and not lg.cDone : iSbEntry and not lg.sbDone)
-                            bool asked = false
-                            if step == 0
-                                asked := f_stepCont(lg)
-                            else if step == 1
-                                asked := f_stepSb(lg)
-                            else
-                                asked := f_stepLeg(lg)
-                            if asked and rqs.size() > 0
-                                bool ok = f_signal(rqs.pop())
-                                if step == 2
-                                    fired := ok
-                                else
-                                    firedC := ok
-    fired
-
 var array<Leg> histLegs = array.new<Leg>()
 f_hasTrade(Leg lg) =>
     bool has = false
@@ -2503,11 +2454,57 @@ f_upkeep(array<Leg> book) =>
                 book.remove(k)
     book.size()
 
-// one call site each, looped over both sides: TradingView inlines a function at every call, and these two are most of the script
-// (called twice they went past the 100K compiled-token limit); they keep no state of their own, so the loop changes nothing
+// one bar of every leg of both books: expiry / orphan failure swing, deeper hunt, then the setups. In the script body, not
+// in a function: a function may use only 254 inputs / request values / globals (CE10116), and this loop reaches them all
 for side = 0 to 1
-    f_stepBook(side == 0 ? bearLegs : bullLegs)
-for side = 0 to 1
+    array<Leg> book = side == 0 ? bearLegs : bullLegs
+    bool fired = false
+    bool firedC = false
+    int n = book.size()
+    if n > 0
+        for k = 0 to n - 1
+            Leg lg = book.get(k)
+            if not lg.done and lg.createdBar != bar_index
+                bool orphan = false
+                if lg.fs
+                    orphan := true
+                    for x in book
+                        if x.oneBar == lg.parentBar and not x.fs and not x.done
+                            orphan := false
+                if bar_index - lg.oneBar > iLegAge or orphan
+                    lg.done := true
+                    lg.endWhy := orphan ? "main leg ended" : "zone not reached (expired)"
+                if not lg.mssOk and (lg.bear ? low < lg.zero : high > lg.zero)
+                    lg.mssOk := true
+                array<int> sa = lg.bear ? slB : shB
+                bool swingAfter = sa.size() > 0 and sa.last() > lg.oneBar
+                if not lg.done and lg.zone == "" and not lg.cMss and not lg.fs and not lg.hasFs and not swingAfter
+                    bool deeper = lg.bear ? high > lg.one and close <= lg.one : low < lg.one and close >= lg.one
+                    if deeper
+                        lg.one := lg.bear ? high : low
+                        lg.oneBar := bar_index
+                        lg.drOne := lg.one
+                        lg.redraw := true
+                else
+                    bool fsOnly = lg.hasFs and not lg.fs and iFsOnly != "Off"
+                    bool fsAll = fsOnly and iFsOnly == "Every setup of the main leg"
+                    // the hunt-leg setup, then the silver bullet (only if the first gave no signal), then the zone reversal
+                    for step = 0 to 2
+                        if step == 2 ? not fired and not lg.done and not fsOnly : not firedC and not fsAll and (step == 0 ? iHunt and not lg.cDone : iSbEntry and not lg.sbDone)
+                            bool asked = false
+                            if step == 0
+                                asked := f_stepCont(lg)
+                            else if step == 1
+                                asked := f_stepSb(lg)
+                            else
+                                asked := f_stepLeg(lg)
+                            if asked and rqs.size() > 0
+                                bool ok = f_signal(rqs.pop())
+                                if step == 2
+                                    fired := ok
+                                else
+                                    firedC := ok
+for side = 0 to 1  // one call site, looped over both sides (fewer compiled tokens)
     f_upkeep(side == 0 ? bearLegs : bullLegs)
 if iClean and histLegs.size() > 0  // Clean view: a finished leg stays only while its trade is pending / open
     for i = histLegs.size() - 1 to 0
@@ -2567,4 +2564,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2570 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2567 — if your editor stops before this line, the copy was cut off =====
