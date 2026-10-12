@@ -334,7 +334,7 @@ class Sec5:
                     if not lg.cleaned:
                         keep = ((self.iHist != "Live legs only" and (not self.iClean or self.f_showSig(lg))) if lg.signaled
                                 else (not self.iClean and self.iHist == "All legs" and lg.endWhy != "replaced by the last stop hunt"))
-                        if keep and self.iClean and _nsz(lg.lns) == 0:
+                        if keep and (self.iClean or lg.createdBar == self.bar_index) and _nsz(lg.lns) == 0:
                             self.f_drawLeg(lg)
                         if keep and _nsz(lg.lns) > 0:
                             self.f_freezeLeg(lg)

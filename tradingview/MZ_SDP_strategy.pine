@@ -2479,8 +2479,9 @@ f_upkeep(array<Leg> book) =>
             bool keep = false
             if lg.done and not lg.cleaned
                 keep := lg.signaled ? iHist != "Live legs only" and (not iClean or f_hasTrade(lg)) : not iClean and iHist == "All legs" and lg.endWhy != "replaced by the last stop hunt"
-            // drawn: every running leg (Clean view: the primary one and the leg of a live signal); a finished one Clean view keeps
-            bool show = lg.done ? keep and iClean : not iClean or k == prim or (f_showSig(lg) and (prim < 0 or f_hasTrade(lg)))
+            // drawn: every running leg (Clean view: the primary one and the leg of a live signal); a finished one that is kept and
+            // has no drawing yet (Clean view, or one that ended on the bar it was made: replaced by bigger legs)
+            bool show = lg.done ? keep and (iClean or lg.createdBar == bar_index) : not iClean or k == prim or (f_showSig(lg) and (prim < 0 or f_hasTrade(lg)))
             if lg.redraw or not (show or lg.done)
                 lg.redraw := false
                 f_hide(lg)
@@ -2566,4 +2567,4 @@ if iShowDash and barstate.islast
     else
         f_row(11, "Dealing range", "— (waiting for BSL and SSL to be taken)", color.gray)
 
-// ===== END OF SCRIPT: line 2569 — if your editor stops before this line, the copy was cut off =====
+// ===== END OF SCRIPT: line 2570 — if your editor stops before this line, the copy was cut off =====
